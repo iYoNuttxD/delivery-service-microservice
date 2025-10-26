@@ -1,0 +1,716 @@
+openapi: 3.0.3
+info:
+  title: Delivery Service API
+  description: |
+    **Microservice de Entregas com Azure SQL Server**
+    
+    Gerenciamento completo de:
+    - 🚚 Entregadores
+    - 🚗 Veículos
+    - 📝 Aluguéis de Veículos
+    - 📦 Entregas
+    
+    Desenvolvido por: iYoNuttxD
+  version: 1.0.0
+  contact:
+    name: iYoNuttxD
+    url: https://github.com/iYoNuttxD
+    email: support@deliveryservice.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Servidor de Desenvolvimento Local
+  - url: https://delivery-service.azurewebsites.net/api/v1
+    description: Servidor de Produção (Azure)
+
+tags:
+  - name: Entregadores
+    description: Operações relacionadas aos entregadores
+  - name: Veículos
+    description: Operações relacionadas aos veículos
+  - name: Aluguéis
+    description: Operações de aluguel de veículos
+  - name: Entregas
+    description: Operações de entregas
+  - name: Health
+    description: Status do serviço
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Verificar status do serviço
+      description: Retorna o status de saúde do microservice
+      responses:
+        '200':
+          description: Serviço operacional
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  timestamp:
+                    type: string
+                    format: date-time
+                  service:
+                    type: string
+                    example: Delivery Service
+                  version:
+                    type: string
+                    example: 1.0.0
+
+  # ==================== ENTREGADORES ====================
+  /entregadores:
+    get:
+      tags:
+        - Entregadores
+      summary: Listar todos os entregadores
+      description: Retorna uma lista de entregadores com opção de filtro por status
+      parameters:
+        - name: status
+          in: query
+          description: Filtrar por status
+          schema:
+            type: string
+            enum: [ATIVO, INATIVO, BLOQUEADO]
+      responses:
+        '200':
+          description: Lista de entregadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Entregador'
+                  total:
+                    type: integer
+
+    post:
+      tags:
+        - Entregadores
+      summary: Criar novo entregador
+      description: Cadastra um novo entregador no sistema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEntregadorRequest'
+      responses:
+        '201':
+          description: Entregador criado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Entregador'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /entregadores/{id}:
+    get:
+      tags:
+        - Entregadores
+      summary: Buscar entregador por ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Entregador encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Entregador'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Entregadores
+      summary: Atualizar entregador
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEntregadorRequest'
+      responses:
+        '200':
+          description: Entregador atualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Entregador'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Entregadores
+      summary: Deletar entregador
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Entregador deletado com sucesso
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== VEÍCULOS ====================
+  /veiculos:
+    get:
+      tags:
+        - Veículos
+      summary: Listar todos os veículos
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DISPONIVEL, ALUGADO, MANUTENCAO]
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [MOTOCICLETA, CARRO, BICICLETA]
+      responses:
+        '200':
+          description: Lista de veículos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Veiculo'
+                  total:
+                    type: integer
+
+    post:
+      tags:
+        - Veículos
+      summary: Criar novo veículo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVeiculoRequest'
+      responses:
+        '201':
+          description: Veículo criado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Veiculo'
+
+  /veiculos/{id}:
+    get:
+      tags:
+        - Veículos
+      summary: Buscar veículo por ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Veículo encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Veiculo'
+
+    put:
+      tags:
+        - Veículos
+      summary: Atualizar veículo
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVeiculoRequest'
+      responses:
+        '200':
+          description: Veículo atualizado
+
+    delete:
+      tags:
+        - Veículos
+      summary: Deletar veículo
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Veículo deletado
+
+  # ==================== ALUGUÉIS ====================
+  /alugueis:
+    get:
+      tags:
+        - Aluguéis
+      summary: Listar todos os aluguéis
+      parameters:
+        - name: entregadorId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ATIVO, FINALIZADO, CANCELADO]
+      responses:
+        '200':
+          description: Lista de aluguéis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Aluguel'
+                  total:
+                    type: integer
+
+    post:
+      tags:
+        - Aluguéis
+      summary: Criar novo aluguel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAluguelRequest'
+      responses:
+        '201':
+          description: Aluguel criado com sucesso
+
+  /alugueis/{id}:
+    get:
+      tags:
+        - Aluguéis
+      summary: Buscar aluguel por ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Aluguel encontrado
+
+  /alugueis/{id}/finalizar:
+    patch:
+      tags:
+        - Aluguéis
+      summary: Finalizar aluguel
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - dataFim
+              properties:
+                dataFim:
+                  type: string
+                  format: date
+                  example: "2024-02-15"
+      responses:
+        '200':
+          description: Aluguel finalizado
+
+  /alugueis/{id}/cancelar:
+    patch:
+      tags:
+        - Aluguéis
+      summary: Cancelar aluguel
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Aluguel cancelado
+
+  # ==================== ENTREGAS ====================
+  /entregas:
+    get:
+      tags:
+        - Entregas
+      summary: Listar todas as entregas
+      parameters:
+        - name: entregadorId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDENTE, ATRIBUIDA, COLETADA, EM_TRANSITO, ENTREGUE, CANCELADA]
+        - name: pedidoId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de entregas
+
+    post:
+      tags:
+        - Entregas
+      summary: Criar nova entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEntregaRequest'
+      responses:
+        '201':
+          description: Entrega criada com sucesso
+
+  /entregas/{id}:
+    get:
+      tags:
+        - Entregas
+      summary: Buscar entrega por ID
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Entrega encontrada
+
+  /entregas/{id}/status:
+    patch:
+      tags:
+        - Entregas
+      summary: Atualizar status da entrega
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [PENDENTE, ATRIBUIDA, COLETADA, EM_TRANSITO, ENTREGUE, CANCELADA]
+      responses:
+        '200':
+          description: Status atualizado
+
+# ==================== COMPONENTS ====================
+components:
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: ID do recurso
+
+  schemas:
+    Entregador:
+      type: object
+      properties:
+        Id:
+          type: integer
+        Nome:
+          type: string
+        Documento:
+          type: string
+        CNH:
+          type: string
+        CNHCategoria:
+          type: string
+        Email:
+          type: string
+        Telefone:
+          type: string
+        DataNascimento:
+          type: string
+          format: date
+        Status:
+          type: string
+          enum: [ATIVO, INATIVO, BLOQUEADO]
+        CreatedAt:
+          type: string
+          format: date-time
+        UpdatedAt:
+          type: string
+          format: date-time
+
+    CreateEntregadorRequest:
+      type: object
+      required:
+        - nome
+        - documento
+        - cnh
+        - cnhCategoria
+        - email
+        - telefone
+        - dataNascimento
+      properties:
+        nome:
+          type: string
+          example: "João Silva"
+        documento:
+          type: string
+          pattern: '^\d{11}$'
+          example: "12345678901"
+        cnh:
+          type: string
+          example: "CNH123456"
+        cnhCategoria:
+          type: string
+          example: "AB"
+        email:
+          type: string
+          format: email
+          example: "joao@example.com"
+        telefone:
+          type: string
+          example: "11987654321"
+        dataNascimento:
+          type: string
+          format: date
+          example: "1990-05-15"
+
+    UpdateEntregadorRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        status:
+          type: string
+          enum: [ATIVO, INATIVO, BLOQUEADO]
+
+    Veiculo:
+      type: object
+      properties:
+        Id:
+          type: integer
+        Tipo:
+          type: string
+        Placa:
+          type: string
+        Modelo:
+          type: string
+        Marca:
+          type: string
+        Ano:
+          type: integer
+        PrecoDiaria:
+          type: number
+        Status:
+          type: string
+        LocadorId:
+          type: integer
+
+    CreateVeiculoRequest:
+      type: object
+      required:
+        - tipo
+        - placa
+        - modelo
+        - marca
+        - ano
+        - precoDiaria
+        - locadorId
+      properties:
+        tipo:
+          type: string
+          enum: [MOTOCICLETA, CARRO, BICICLETA]
+        placa:
+          type: string
+        modelo:
+          type: string
+        marca:
+          type: string
+        ano:
+          type: integer
+        precoDiaria:
+          type: number
+        locadorId:
+          type: integer
+
+    UpdateVeiculoRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [DISPONIVEL, ALUGADO, MANUTENCAO]
+        precoDiaria:
+          type: number
+
+    Aluguel:
+      type: object
+      properties:
+        Id:
+          type: integer
+        DataInicio:
+          type: string
+          format: date
+        DataFim:
+          type: string
+          format: date
+          nullable: true
+        Valor:
+          type: number
+        Status:
+          type: string
+        VeiculoId:
+          type: integer
+        EntregadorId:
+          type: integer
+
+    CreateAluguelRequest:
+      type: object
+      required:
+        - dataInicio
+        - entregadorId
+        - veiculoId
+      properties:
+        dataInicio:
+          type: string
+          format: date
+        entregadorId:
+          type: integer
+        veiculoId:
+          type: integer
+
+    CreateEntregaRequest:
+      type: object
+      required:
+        - pedidoId
+        - entregadorId
+        - aluguelId
+        - enderecoColeta
+        - enderecoEntrega
+        - taxaEntrega
+      properties:
+        pedidoId:
+          type: string
+        entregadorId:
+          type: integer
+        aluguelId:
+          type: integer
+        enderecoColeta:
+          type: string
+        enderecoEntrega:
+          type: string
+        taxaEntrega:
+          type: number
+
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              errors:
+                type: array
+                items:
+                  type: object
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  statusCode:
+                    type: integer
+
+    Conflict:
+      description: Conflito - recurso já existe
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
