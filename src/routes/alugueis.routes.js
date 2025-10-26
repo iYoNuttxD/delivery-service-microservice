@@ -1,4 +1,4 @@
-aconst express = require('express');
+const express = require('express');
 const { body, param } = require('express-validator');
 const AluguelController = require('../controllers/AluguelController');
 const validate = require('../middlewares/validator');
@@ -27,5 +27,6 @@ router.get('/:id', idValidation, AluguelController.getById);
 router.post('/', createValidation, AluguelController.create);
 router.patch('/:id/finalizar', [...idValidation, ...finalizeValidation], AluguelController.finalize);
 router.patch('/:id/cancelar', idValidation, AluguelController.cancel);
+
 
 module.exports = router;
