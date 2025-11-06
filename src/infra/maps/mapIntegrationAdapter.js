@@ -4,12 +4,17 @@ const logger = require('../../utils/logger');
 class MapIntegrationAdapter {
   constructor() {
     this.apiUrl = process.env.MAPS_API_URL || 'https://maps.googleapis.com/maps/api';
-    this.apiKey = process.env.MAPS_API_KEY || '';
+  }
+
+  getApiKey() {
+    return process.env.MAPS_API_KEY || '';
   }
 
   async getETA(origin, destination) {
     try {
-      if (!this.apiKey) {
+      const apiKey = this.getApiKey();
+      
+      if (!apiKey) {
         logger.warn('⚠️ MAPS_API_KEY não configurada, retornando valores simulados');
         return this._getMockETA(origin, destination);
       }
@@ -22,7 +27,7 @@ class MapIntegrationAdapter {
         params: {
           origins: origin,
           destinations: destination,
-          key: this.apiKey,
+          key: apiKey,
           mode: 'driving',
           departure_time: 'now'
         },
@@ -70,7 +75,9 @@ class MapIntegrationAdapter {
 
   async getRoute(origin, destination) {
     try {
-      if (!this.apiKey) {
+      const apiKey = this.getApiKey();
+      
+      if (!apiKey) {
         logger.warn('⚠️ MAPS_API_KEY não configurada, retornando rota simulada');
         return this._getMockRoute(origin, destination);
       }
@@ -82,7 +89,7 @@ class MapIntegrationAdapter {
         params: {
           origin,
           destination,
-          key: this.apiKey,
+          key: apiKey,
           mode: 'driving',
           alternatives: false
         },
