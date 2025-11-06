@@ -21,10 +21,12 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
+  - url: /api/v1
+    description: Ambiente atual (mesmo host do /api-docs)
+  - url: https://SEU_HOST.azurewebsites.net/api/v1
+    description: Produção (Azure)
   - url: http://localhost:3001/api/v1
-    description: Servidor de Desenvolvimento Local
-  - url: https://delivery-service.azurewebsites.net/api/v1
-    description: Servidor de Produção (Azure)
+    description: Desenvolvimento local
 
 tags:
   - name: Entregadores
@@ -713,4 +715,5 @@ components:
                 type: boolean
                 example: false
               error:
+
                 type: object
