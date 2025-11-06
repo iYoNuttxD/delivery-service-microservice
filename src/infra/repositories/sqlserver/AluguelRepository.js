@@ -102,6 +102,60 @@ class AluguelRepository {
     
     return result.recordset[0];
   }
+
+  async findActiveByEntregador(entregadorId) {
+    const pool = await getConnection();
+    const result = await pool
+      .request()
+      .input('entregadorId', sql.Int, entregadorId)
+      .query(`
+        SELECT * FROM Aluguel 
+        WHERE EntregadorId = @entregadorId AND Status = 'ATIVO'
+      `);
+    
+    return result.recordset[0];
+  }
+
+  async findActiveByVeiculo(veiculoId) {
+    const pool = await getConnection();
+    const result = await pool
+      .request()
+      .input('veiculoId', sql.Int, veiculoId)
+      .query(`
+        SELECT * FROM Aluguel 
+        WHERE VeiculoId = @veiculoId AND Status = 'ATIVO'
+      `);
+    
+    return result.recordset[0];
+  }
+
+  async updateStatus(id, status, additionalData = {}) {
+    const pool = await getConnection();
+    const request = pool.request()
+      .input('id', sql.Int, id)
+      .input('status', sql.NVarChar, status);
+
+    let updates = ['Status = @status', 'UpdatedAt = GETUTCDATE()'];
+
+    if (additionalData.dataFim) {
+      updates.push('DataFim = @dataFim');
+      request.input('dataFim', sql.Date, additionalData.dataFim);
+    }
+
+    if (additionalData.valorTotal) {
+      updates.push('Valor = @valorTotal');
+      request.input('valorTotal', sql.Float, additionalData.valorTotal);
+    }
+
+    const result = await request.query(`
+      UPDATE Aluguel 
+      SET ${updates.join(', ')}
+      OUTPUT INSERTED.*
+      WHERE Id = @id
+    `);
+
+    return result.recordset[0];
+  }
 }
 
 module.exports = new AluguelRepository();

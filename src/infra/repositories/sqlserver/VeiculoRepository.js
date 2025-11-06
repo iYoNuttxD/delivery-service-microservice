@@ -98,6 +98,23 @@ class VeiculoRepository {
     
     return result.rowsAffected[0] > 0;
   }
+
+  async updateStatus(id, status) {
+    const pool = await getConnection();
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .input('status', sql.NVarChar, status)
+      .query(`
+        UPDATE Veiculo 
+        SET Status = @status,
+            UpdatedAt = GETUTCDATE()
+        OUTPUT INSERTED.*
+        WHERE Id = @id
+      `);
+    
+    return result.recordset[0];
+  }
 }
 
 module.exports = new VeiculoRepository();
