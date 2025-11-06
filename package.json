@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "jest --coverage",
+    "test": "jest --coverage --runInBand",
     "test:watch": "jest --watch",
     "test:db": "node test-connection.js",
     "lint": "eslint src/**/*.js",
@@ -51,3 +51,4 @@
     "node": ">=18.0.0"
   }
 }
+
