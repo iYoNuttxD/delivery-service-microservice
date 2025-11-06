@@ -3,19 +3,21 @@ const logger = require('../utils/logger');
 
 let pool;
 
-/**
- * Configuração do Azure SQL
- * Garanta que as variáveis estejam definidas no ambiente (Azure/App Service/Container/CI).
- */
+// Permite usar uma connection string única ou variáveis separadas.
+const connectionString =
+  process.env.AZURE_SQL_CONNECTION_STRING ||
+  process.env.SQLSERVER_CONNECTION_STRING ||
+  null;
+
 const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  server: process.env.DB_HOST, // ex.: your-server.database.windows.net
+  server: process.env.DB_SERVER || process.env.DB_HOST, // aceita DB_SERVER (preferido) ou DB_HOST
   database: process.env.DB_NAME,
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433,
   options: {
-    encrypt: process.env.DB_ENCRYPT ? process.env.DB_ENCRYPT === 'true' : true, // Azure SQL requer encrypt
-    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true', // geralmente false no Azure
+    encrypt: process.env.DB_ENCRYPT ? process.env.DB_ENCRYPT === 'true' : true,
+    trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
   },
   pool: {
     max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX, 10) : 10,
@@ -27,16 +29,18 @@ const config = {
 async function getConnection() {
   if (pool && pool.connected) return pool;
   if (pool && pool.connecting) {
-    await pool.connect(); // aguarda a conexão em andamento
+    await pool.connect();
     return pool;
   }
 
-  pool = new sql.ConnectionPool(config);
+  pool = connectionString
+    ? new sql.ConnectionPool(connectionString)
+    : new sql.ConnectionPool(config);
+
   try {
     await pool.connect();
     return pool;
   } catch (err) {
-    // Evita ficar com pool em estado inválido
     pool = undefined;
     logger.error('Erro ao conectar ao Azure SQL', { error: err.message });
     throw err;
