@@ -160,6 +160,32 @@ paths:
         '200':
           description: Posição atualizada
 
+  /tracking/drivers/{driverId}/deliveries:
+    get:
+      tags: [Tracking]
+      summary: Listar entregas ativas de um entregador
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          description: ID do entregador
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de entregas ativas do entregador
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total: { type: integer }
+
   # ==================== ENTREGADORES ====================
   /entregadores:
     get:
