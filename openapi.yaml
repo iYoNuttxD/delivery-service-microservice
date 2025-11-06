@@ -9,6 +9,14 @@ info:
     - 🚗 Veículos
     - 📝 Aluguéis de Veículos
     - 📦 Entregas
+    - 📍 Rastreamento em Tempo Real
+    - 🗺️ Cálculo de ETA e Rotas
+    
+    **Recursos Adicionais:**
+    - Event-Driven Architecture com NATS
+    - Autorização baseada em políticas (OPA)
+    - Métricas Prometheus disponíveis em `/metrics`
+    - Rastreamento GPS em tempo real
     
     Desenvolvido por: iYoNuttxD
   version: 1.0.0
@@ -35,6 +43,10 @@ tags:
     description: Operações de aluguel de veículos
   - name: Entregas
     description: Operações de entregas
+  - name: Tracking
+    description: Rastreamento de entregas em tempo real
+  - name: Observability
+    description: Métricas e monitoramento
   - name: Health
     description: Status do serviço
 
@@ -460,6 +472,111 @@ paths:
         '200':
           description: Status atualizado
 
+  /entregas/{id}/eta:
+    get:
+      tags:
+        - Entregas
+      summary: Calcular tempo estimado de entrega (ETA)
+      description: Retorna o tempo estimado de viagem e distância entre origem e destino
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: ETA calculado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ETAResponse'
+        '404':
+          description: Entrega não encontrada
+        '400':
+          description: Endereços inválidos ou ausentes
+
+  # ==================== TRACKING ====================
+  /tracking/{deliveryId}:
+    get:
+      tags:
+        - Tracking
+      summary: Obter posição atual de rastreamento
+      description: Retorna a última posição conhecida da entrega
+      parameters:
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID da entrega a rastrear
+      responses:
+        '200':
+          description: Posição encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TrackingPosition'
+        '404':
+          description: Posição de rastreamento não encontrada
+
+    post:
+      tags:
+        - Tracking
+      summary: Atualizar posição de rastreamento
+      description: Atualiza a posição geográfica atual da entrega
+      parameters:
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID da entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - lat
+                - lng
+              properties:
+                lat:
+                  type: number
+                  format: double
+                  minimum: -90
+                  maximum: 90
+                  description: Latitude
+                  example: -23.5505
+                lng:
+                  type: number
+                  format: double
+                  minimum: -180
+                  maximum: 180
+                  description: Longitude
+                  example: -46.6333
+      responses:
+        '200':
+          description: Posição atualizada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/TrackingPosition'
+        '400':
+          description: Coordenadas inválidas
+
 # ==================== COMPONENTS ====================
 components:
   parameters:
@@ -667,6 +784,78 @@ components:
           type: string
         taxaEntrega:
           type: number
+
+    TrackingPosition:
+      type: object
+      properties:
+        deliveryId:
+          type: string
+          description: ID da entrega
+        lat:
+          type: number
+          format: double
+          description: Latitude
+          example: -23.5505
+        lng:
+          type: number
+          format: double
+          description: Longitude
+          example: -46.6333
+        updatedAt:
+          type: string
+          format: date-time
+          description: Data/hora da última atualização
+
+    ETAResponse:
+      type: object
+      properties:
+        deliveryId:
+          type: integer
+          description: ID da entrega
+        origin:
+          type: string
+          description: Endereço de origem
+        destination:
+          type: string
+          description: Endereço de destino
+        distance:
+          type: object
+          properties:
+            value:
+              type: integer
+              description: Distância em metros
+              example: 10000
+            text:
+              type: string
+              description: Distância formatada
+              example: "10.0 km"
+        duration:
+          type: object
+          properties:
+            value:
+              type: integer
+              description: Duração em segundos
+              example: 1200
+            text:
+              type: string
+              description: Duração formatada
+              example: "20 min"
+        durationInTraffic:
+          type: object
+          nullable: true
+          properties:
+            value:
+              type: integer
+              description: Duração com tráfego em segundos
+              example: 1440
+            text:
+              type: string
+              description: Duração com tráfego formatada
+              example: "24 min"
+        mock:
+          type: boolean
+          description: Indica se os dados são simulados (quando API não está configurada)
+          example: false
 
   responses:
     BadRequest:

@@ -55,17 +55,42 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 - Criar entregas vinculadas a pedidos
 - Rastreamento de status com máquina de estados
 - Timestamps automáticos (coleta/entrega)
-- Integração com microservice de pedidos
+- Cálculo de ETA (tempo estimado de entrega)
+- Integração com APIs de mapas (Google Maps)
+
+### ✅ **Rastreamento em Tempo Real**
+- Atualização de posição GPS das entregas
+- Consulta de localização em tempo real
+- Armazenamento em memória com possibilidade de persistência
+
+### ✅ **Event-Driven Architecture (EDA)**
+- Publicação de eventos de mudança de status
+- Subscrição a eventos de criação de pedidos
+- Integração via NATS (opcional)
+- Suporte a arquitetura assíncrona
+
+### ✅ **Autorização e Segurança**
+- Autorização baseada em políticas (OPA)
+- Controle de acesso granular por recurso e ação
+- Proteção de endpoints sensíveis
+- Feature flag para ambientes sem OPA
+
+### ✅ **Observabilidade**
+- Métricas Prometheus (/metrics)
+- Monitoramento de requests HTTP
+- Tracking de eventos NATS
+- Métricas customizadas por domínio
+- Logging estruturado (Winston)
 
 ### ✅ **Recursos Técnicos**
 - Arquitetura em camadas (Repository → Service → Controller)
 - Validação de dados (express-validator)
-- Logging estruturado (Winston)
 - Tratamento centralizado de erros
 - Documentação OpenAPI/Swagger
 - Testes automatizados (Jest)
 - Containerização (Docker)
 - Health check endpoint
+- Graceful shutdown
 
 ---
 
@@ -79,8 +104,16 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 | **Azure SQL Server** | 2022 | Banco de dados |
 | **Winston** | 3.11 | Sistema de logs |
 | **Swagger UI** | 5.0 | Documentação API |
+| **mssql** | 12.0 | Driver Azure SQL Server |
+| **Azure SQL Server** | 2022 | Banco de dados |
+| **Winston** | 3.11 | Sistema de logs |
+| **Swagger UI** | 5.0 | Documentação API |
 | **Jest** | 29.7 | Framework de testes |
 | **Docker** | Latest | Containerização |
+| **NATS** | Latest | Message Broker (Event-Driven) |
+| **OPA** | Latest | Policy-based Authorization |
+| **Axios** | Latest | HTTP Client |
+| **Prom-Client** | Latest | Métricas Prometheus |
 
 ---
 
@@ -158,18 +191,36 @@ npm install
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` com suas credenciais do Azure SQL Server:
+Edite o arquivo `.env` com suas credenciais do Azure SQL Server e serviços opcionais:
 
 ```env
+# Application
 NODE_ENV=development
 PORT=3001
 
+# Azure SQL Server Configuration
 DB_SERVER=your-server.database.windows.net
 DB_DATABASE=DeliveryServiceDB
 DB_USER=your-username
 DB_PASSWORD=your-password
 
+# Logging
 LOG_LEVEL=info
+
+# NATS Configuration (Event-Driven Architecture) - OPCIONAL
+# Se não configurado, o serviço funciona sem EDA
+NATS_URL=nats://localhost:4222
+NATS_CLIENT_ID=delivery-service
+NATS_SUBJECT_ORDER_CREATED=order.created
+
+# OPA Configuration (Policy-based Authorization) - OPCIONAL
+# Se não configurado, a autorização OPA é ignorada
+OPA_URL=http://localhost:8181
+
+# Maps API Configuration (Routes and ETA) - OPCIONAL
+# Se não configurado, retorna valores simulados
+MAPS_API_URL=https://maps.googleapis.com/maps/api
+MAPS_API_KEY=your-google-maps-api-key
 ```
 
 ### **4. Criar Banco de Dados**
@@ -250,6 +301,37 @@ npm run test:db
 ✅ Teste concluído com sucesso!
 ```
 
+### **Executar com Serviços Opcionais (NATS, OPA)**
+
+Para desenvolvimento local completo com todos os recursos:
+
+**1. Iniciar serviços via Docker Compose:**
+
+```bash
+docker-compose up -d nats opa sqlserver
+```
+
+**2. Configurar variáveis de ambiente:**
+
+```env
+NATS_URL=nats://localhost:4222
+OPA_URL=http://localhost:8181
+MAPS_API_KEY=your-google-maps-api-key  # Opcional
+```
+
+**3. Iniciar o serviço:**
+
+```bash
+npm run dev
+```
+
+**Verificar serviços:**
+- NATS: http://localhost:8222 (monitoring)
+- OPA: http://localhost:8181/health
+- API: http://localhost:3001/api/v1/health
+
+**Nota:** O serviço funciona perfeitamente sem NATS e OPA configurados. Eles são recursos opcionais que adicionam Event-Driven Architecture e autorização baseada em políticas.
+
 ---
 
 ## 📡 **API Endpoints**
@@ -312,8 +394,40 @@ curl -X POST http://localhost:3001/api/v1/entregadores \
 |--------|----------|-----------|
 | GET | `/api/v1/entregas` | Listar todas |
 | GET | `/api/v1/entregas/:id` | Buscar por ID |
+| GET | `/api/v1/entregas/:id/eta` | Calcular ETA |
 | POST | `/api/v1/entregas` | Criar nova |
 | PATCH | `/api/v1/entregas/:id/status` | Atualizar status |
+
+### **Rastreamento**
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/tracking/:deliveryId` | Obter posição atual |
+| POST | `/api/v1/tracking/:deliveryId` | Atualizar posição |
+
+**Exemplo - Atualizar Posição:**
+
+```bash
+curl -X POST http://localhost:3001/api/v1/tracking/delivery-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "lat": -23.5505,
+    "lng": -46.6333
+  }'
+```
+
+### **Métricas (Prometheus)**
+
+```http
+GET /metrics
+```
+
+Retorna métricas no formato Prometheus para monitoramento:
+- Requisições HTTP (total, duração)
+- Eventos NATS (publicados, recebidos)
+- Verificações OPA (allow/deny)
+- Chamadas API de mapas
+- Atualizações de rastreamento
 
 ---
 
@@ -391,7 +505,26 @@ docker-compose up -d
 
 **Serviços disponíveis:**
 - `delivery-service` - API (porta 3001)
-- `sqlserver` - SQL Server local (porta 1433) - opcional
+- `sqlserver` - SQL Server local (porta 1433) - opcional para desenvolvimento
+- `nats` - NATS Server (portas 4222, 8222, 6222) - Event-Driven Architecture
+- `opa` - OPA Server (porta 8181) - Policy-based Authorization
+
+**Para iniciar apenas o serviço principal:**
+
+```bash
+docker-compose up delivery-service
+```
+
+**Para incluir todos os serviços:**
+
+```bash
+docker-compose up -d
+```
+
+**Monitoramento:**
+- NATS Monitoring: http://localhost:8222
+- OPA Health: http://localhost:8181/health
+- Prometheus Metrics: http://localhost:3001/metrics
 
 ---
 
@@ -414,10 +547,41 @@ az webapp config appsettings set \
   --name delivery-service-api \
   --resource-group erp-builders-rg \
   --settings \
+    NODE_ENV="production" \
     DB_SERVER="your-server.database.windows.net" \
     DB_DATABASE="DeliveryServiceDB" \
     DB_USER="your-user" \
-    DB_PASSWORD="your-password"
+    DB_PASSWORD="your-password" \
+    LOG_LEVEL="info" \
+    NATS_URL="nats://your-nats-server:4222" \
+    NATS_CLIENT_ID="delivery-service-prod" \
+    OPA_URL="http://your-opa-server:8181" \
+    MAPS_API_KEY="your-google-maps-api-key"
+```
+
+**Notas sobre Deploy no Azure:**
+
+1. **Azure SQL Server**: Já deve estar configurado e acessível
+2. **NATS**: Pode usar Azure Container Instances ou serviço gerenciado
+3. **OPA**: Pode rodar como sidecar ou serviço separado no Azure
+4. **Métricas**: Configure Azure Monitor para coletar métricas do endpoint `/metrics`
+5. **Variáveis Opcionais**: NATS_URL, OPA_URL e MAPS_API_KEY são opcionais
+
+**Monitoramento no Azure:**
+
+```bash
+# Habilitar Application Insights
+az monitor app-insights component create \
+  --app delivery-service-insights \
+  --location brazilsouth \
+  --resource-group erp-builders-rg
+
+# Configurar no App Service
+az webapp config appsettings set \
+  --name delivery-service-api \
+  --resource-group erp-builders-rg \
+  --settings \
+    APPLICATIONINSIGHTS_CONNECTION_STRING="your-connection-string"
 ```
 
 ### **Azure Container Instances**
