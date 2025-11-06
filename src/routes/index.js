@@ -4,18 +4,16 @@ const veiculosRoutes = require('./veiculos.routes');
 const alugueisRoutes = require('./alugueis.routes');
 const entregasRoutes = require('./entregas.routes');
 const trackingRoutes = require('./tracking.routes');
-const natsClient = require('../messaging/natsClient');
-const authPolicyClient = require('../auth/AuthPolicyClient');
-const mapAdapter = require('../adapters/MapIntegrationAdapter');
+const container = require('../main/container');
 const metrics = require('../utils/metrics');
 
 const router = express.Router();
 
 // Health Check
 router.get('/health', (req, res) => {
-  const natsStatus = natsClient.getStatus();
-  const opaStatus = authPolicyClient.getStatus();
-  const mapStatus = mapAdapter.getStatus();
+  const natsStatus = container.messageBus.getStatus();
+  const opaStatus = container.policyClient.getStatus();
+  const mapStatus = container.mapService.getStatus();
   
   res.json({
     status: 'UP',

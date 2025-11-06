@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const EntregadorController = require('../controllers/EntregadorController');
+const EntregadorController = require('../infra/http/express/DriverController');
 const validate = require('../middlewares/validator');
 
 const router = express.Router();
