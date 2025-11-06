@@ -1,4 +1,4 @@
-const MapIntegrationAdapter = require('../../src/adapters/MapIntegrationAdapter');
+const MapIntegrationAdapter = require('../../src/infra/adapters/MapServiceAdapter');
 
 describe('MapIntegrationAdapter', () => {
   describe('quando o serviço está desabilitado', () => {
