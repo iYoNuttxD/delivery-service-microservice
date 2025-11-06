@@ -54,12 +54,19 @@ app.use(errorHandler);
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Delivery Service rodando na porta ${PORT}`);
   console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  
+
+  // Evita derrubar testes: não tenta conectar nem faz exit em ambiente de teste
+  if (process.env.NODE_ENV === 'test') {
+    logger.info('🧪 Ambiente de teste: pulando verificação de conexão com o banco.');
+    return;
+  }
+
   try {
     await getConnection();
     logger.info('✅ Banco de dados conectado');
   } catch (error) {
     logger.error('❌ Erro ao conectar ao banco:', error);
+    // Em produção/staging é aceitável encerrar se não conectar
     process.exit(1);
   }
 });
