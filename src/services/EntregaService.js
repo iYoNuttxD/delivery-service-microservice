@@ -1,6 +1,8 @@
 const EntregaRepository = require('../repositories/EntregaRepository');
 const AluguelRepository = require('../repositories/AluguelRepository');
 const logger = require('../utils/logger');
+const eventPublisher = require('../infra/nats/eventPublisher');
+const mapIntegrationAdapter = require('../infra/maps/mapIntegrationAdapter');
 
 class EntregaService {
   async getAllEntregas(filters = {}) {
@@ -94,9 +96,43 @@ class EntregaService {
       const entregaAtualizada = await EntregaRepository.updateStatus(id, status, additionalData);
       logger.info('Status da entrega atualizado com sucesso', { id, status });
       
+      // Publicar evento de mudança de status
+      await eventPublisher.publishDeliveryStatusChanged(id, status);
+      
       return entregaAtualizada;
     } catch (error) {
       logger.error('Erro ao atualizar status da entrega', { id, error: error.message });
+      throw error;
+    }
+  }
+
+  async getETA(id) {
+    try {
+      logger.info('Calculando ETA para entrega', { id });
+      
+      const entrega = await this.getEntregaById(id);
+      
+      if (!entrega.EnderecoColeta || !entrega.EnderecoEntrega) {
+        const error = new Error('Endereços de coleta e entrega são necessários para calcular ETA');
+        error.statusCode = 400;
+        throw error;
+      }
+      
+      const eta = await mapIntegrationAdapter.getETA(
+        entrega.EnderecoColeta,
+        entrega.EnderecoEntrega
+      );
+      
+      logger.info('ETA calculado com sucesso', { id, eta });
+      
+      return {
+        deliveryId: id,
+        origin: entrega.EnderecoColeta,
+        destination: entrega.EnderecoEntrega,
+        ...eta
+      };
+    } catch (error) {
+      logger.error('Erro ao calcular ETA', { id, error: error.message });
       throw error;
     }
   }

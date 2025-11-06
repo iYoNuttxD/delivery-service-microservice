@@ -15,10 +15,16 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - LOG_LEVEL=info
+      - NATS_URL=nats://nats:4222
+      - NATS_CLIENT_ID=delivery-service
+      - OPA_URL=http://opa:8181
     volumes:
       - ./logs:/app/logs
     networks:
       - erp-network
+    depends_on:
+      - nats
+      - opa
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
@@ -41,6 +47,44 @@ services:
       - sqlserver-data:/var/opt/mssql
     networks:
       - erp-network
+
+  # NATS Server (Event-Driven Architecture)
+  nats:
+    image: nats:latest
+    container_name: nats-server
+    restart: unless-stopped
+    ports:
+      - "4222:4222"  # Client connections
+      - "8222:8222"  # HTTP monitoring
+      - "6222:6222"  # Cluster connections
+    command: "--http_port 8222"
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OPA Server (Policy-based Authorization)
+  opa:
+    image: openpolicyagent/opa:latest
+    container_name: opa-server
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    command: 
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "--log-level=info"
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8181/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   sqlserver-data:

@@ -64,6 +64,20 @@ class EntregaController {
       next(error);
     }
   }
+
+  async getETA(req, res, next) {
+    try {
+      const { id } = req.params;
+      const eta = await EntregaService.getETA(parseInt(id));
+      
+      res.json({
+        success: true,
+        data: eta
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new EntregaController();

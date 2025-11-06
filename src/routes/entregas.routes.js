@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const EntregaController = require('../controllers/EntregaController');
 const validate = require('../middlewares/validator');
+const opaAuthorization = require('../middlewares/opaAuthorization');
 
 const router = express.Router();
 
@@ -27,7 +28,8 @@ const idValidation = [
 
 router.get('/', EntregaController.getAll);
 router.get('/:id', idValidation, EntregaController.getById);
-router.post('/', createValidation, EntregaController.create);
-router.patch('/:id/status', [...idValidation, ...statusValidation], EntregaController.updateStatus);
+router.get('/:id/eta', idValidation, EntregaController.getETA);
+router.post('/', opaAuthorization({ resource: 'delivery', action: 'create' }), createValidation, EntregaController.create);
+router.patch('/:id/status', opaAuthorization({ resource: 'delivery', action: 'update' }), [...idValidation, ...statusValidation], EntregaController.updateStatus);
 
 module.exports = router;

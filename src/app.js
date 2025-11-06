@@ -11,9 +11,15 @@ const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./utils/logger');
 const { getConnection, closeConnection } = require('./config/database');
+const { metricsMiddleware, metricsHandler } = require('./utils/metrics');
+const natsClient = require('./infra/nats/natsClient');
+const eventSubscriber = require('./infra/nats/eventSubscriber');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Metrics middleware (deve ser um dos primeiros)
+app.use(metricsMiddleware);
 
 // Middlewares
 app.use(helmet());
@@ -29,6 +35,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customCss: '.swagger-ui .topbar { display: none }'
 }));
 
+// Metrics endpoint
+app.get('/metrics', metricsHandler);
+
 // Rotas
 app.use('/api/v1', routes);
 
@@ -39,10 +48,12 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/v1/health',
+      metrics: '/metrics',
       entregadores: '/api/v1/entregadores',
       veiculos: '/api/v1/veiculos',
       alugueis: '/api/v1/alugueis',
-      entregas: '/api/v1/entregas'
+      entregas: '/api/v1/entregas',
+      tracking: '/api/v1/tracking'
     }
   });
 });
@@ -67,6 +78,26 @@ const server = app.listen(PORT, async () => {
     logger.error('❌ Erro ao conectar ao banco:', error);
     process.exit(1);
   }
+
+  // Inicializar NATS (se configurado)
+  if (process.env.NATS_URL) {
+    try {
+      await natsClient.connect();
+      
+      // Subscrever a eventos
+      await eventSubscriber.subscribeToOrderCreated(async (data) => {
+        logger.info('📦 Evento order.created recebido', { data });
+        // Aqui você pode criar uma entrega placeholder ou processar o pedido
+        // Por enquanto, apenas registramos o evento
+      });
+      
+      logger.info('✅ NATS conectado e subscrito a eventos');
+    } catch (error) {
+      logger.warn('⚠️ Erro ao conectar ao NATS (continuando sem EDA):', error.message);
+    }
+  } else {
+    logger.info('ℹ️ NATS não configurado, rodando sem Event-Driven Architecture');
+  }
 });
 
 // Graceful shutdown
@@ -74,6 +105,19 @@ process.on('SIGTERM', async () => {
   console.log('⚠️  SIGTERM recebido, fechando servidor...');
   server.close(async () => {
     await closeConnection();
+    await eventSubscriber.unsubscribeAll();
+    await natsClient.close();
+    console.log('✅ Servidor encerrado');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('⚠️  SIGINT recebido, fechando servidor...');
+  server.close(async () => {
+    await closeConnection();
+    await eventSubscriber.unsubscribeAll();
+    await natsClient.close();
     console.log('✅ Servidor encerrado');
     process.exit(0);
   });
