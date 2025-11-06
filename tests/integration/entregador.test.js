@@ -1,7 +1,18 @@
 const request = require('supertest');
 const app = require('../../src/app');
 
-describe('Entregadores API', () => {
+// Executa integração apenas se houver DB configurado (connection string ou server)
+const hasDb =
+  !!(
+    process.env.AZURE_SQL_CONNECTION_STRING ||
+    process.env.SQLSERVER_CONNECTION_STRING ||
+    process.env.DB_SERVER ||
+    process.env.DB_HOST
+  );
+
+const describeIfDb = hasDb ? describe : describe.skip;
+
+describeIfDb('Entregadores API', () => {
   let createdEntregadorId;
 
   describe('POST /api/v1/entregadores', () => {
