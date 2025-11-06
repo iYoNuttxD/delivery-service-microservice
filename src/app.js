@@ -26,6 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(metricsMiddleware);
 
+// Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customSiteTitle: 'Delivery Service API Docs',
@@ -54,48 +55,75 @@ app.get('/', (req, res) => {
 // Middleware de erro (deve ser o último)
 app.use(errorHandler);
 
-// Iniciar servidor
-const server = app.listen(PORT, async () => {
-  console.log(`🚀 Delivery Service rodando na porta ${PORT}`);
-  console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+// Bootstrap do servidor (não executar em ambiente de teste)
+let server;
 
-  if (process.env.NODE_ENV === 'test') {
-    logger.info('🧪 Ambiente de teste: pulando verificação de conexão com o banco.');
-    return;
-  }
+async function startServer() {
+  server = app.listen(PORT, async () => {
+    console.log(`🚀 Delivery Service rodando na porta ${PORT}`);
+    console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
 
-  try {
-    await getConnection();
-    logger.info('✅ Banco de dados conectado');
-  } catch (error) {
-    logger.error('❌ Erro ao conectar ao banco:', error);
-    process.exit(1);
-  }
-
-  // Initialize NATS connection if configured
-  try {
-    await natsClient.connect();
-    if (natsClient.isConnected) {
-      logger.info('✅ NATS conectado');
-      
-      // Initialize event subscriber
-      await eventSubscriber.initialize();
-      logger.info('✅ Event Subscriber inicializado');
+    if (process.env.NODE_ENV === 'test') {
+      logger.info('🧪 Ambiente de teste: pulando verificação de conexão com o banco.');
+      return;
     }
-  } catch (error) {
-    logger.warn('⚠️  NATS não disponível. Continuando sem mensageria.', { error: error.message });
-  }
-});
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('⚠️  SIGTERM recebido, fechando servidor...');
-  server.close(async () => {
-    await closeConnection();
-    await natsClient.close();
-    console.log('✅ Servidor encerrado');
-    process.exit(0);
+    try {
+      await getConnection();
+      logger.info('✅ Banco de dados conectado');
+    } catch (error) {
+      logger.error('❌ Erro ao conectar ao banco:', error);
+      process.exit(1);
+    }
+
+    // Inicializa NATS se configurado
+    try {
+      await natsClient.connect();
+      if (natsClient.isConnected) {
+        logger.info('✅ NATS conectado');
+
+        // Inicializa assinante de eventos
+        await eventSubscriber.initialize();
+        logger.info('✅ Event Subscriber inicializado');
+      }
+    } catch (error) {
+      logger.warn('⚠️  NATS não disponível. Continuando sem mensageria.', { error: error.message });
+    }
   });
-});
+}
+
+// Apenas inicia o servidor quando o arquivo é executado diretamente e não em testes
+if (require.main === module && process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+// Encerramento gracioso
+async function shutdown() {
+  try {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+    }
+  } catch (e) {
+    // noop
+  }
+
+  try {
+    await closeConnection();
+  } catch (e) {
+    // noop
+  }
+
+  try {
+    await natsClient.close();
+  } catch (e) {
+    // noop
+  }
+
+  console.log('✅ Servidor encerrado');
+  process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 module.exports = app;
