@@ -1,20 +1,19 @@
+# Use a imagem oficial do Node.js 18 como base
 FROM node:18-alpine
 
-WORKDIR /app
+# Defina o diretório de trabalho dentro do contêiner
+WORKDIR /usr/src/app
 
+# Copie os arquivos de manifesto do pacote e instale as dependências
+# Copiar package-lock.json garante instalações consistentes
 COPY package*.json ./
 RUN npm ci --only=production
 
+# Copie o código-fonte da sua aplicação
 COPY . .
-RUN mkdir -p logs
 
-# CORRIGIDO: Porta 8082
-EXPOSE 8082
+# Exponha a porta em que o App Service irá executar a aplicação
+EXPOSE 8080
 
-ENV NODE_ENV=production
-
-# CORRIGIDO: Health check na porta 8082
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8082/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-CMD ["node", "src/app.js"]
+# Comando para iniciar a aplicação
+CMD [ "npm", "start" ]
