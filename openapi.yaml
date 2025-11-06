@@ -29,6 +29,12 @@ servers:
     description: Desenvolvimento local
 
 tags:
+  - name: Health
+    description: Status do serviço
+  - name: Métricas
+    description: Métricas Prometheus
+  - name: Tracking
+    description: Rastreamento de entregas
   - name: Entregadores
     description: Operações relacionadas aos entregadores
   - name: Veículos
@@ -37,16 +43,13 @@ tags:
     description: Operações de aluguel de veículos
   - name: Entregas
     description: Operações de entregas
-  - name: Health
-    description: Status do serviço
 
 paths:
   /health:
     get:
-      tags:
-        - Health
+      tags: [Health]
       summary: Verificar status do serviço
-      description: Retorna o status de saúde do microservice
+      description: Retorna o status de saúde do microservice e integrações
       responses:
         '200':
           description: Serviço operacional
@@ -67,12 +70,100 @@ paths:
                   version:
                     type: string
                     example: 1.0.0
+                  integrations:
+                    type: object
+                    properties:
+                      nats:
+                        type: object
+                        properties:
+                          connected: { type: boolean, example: true }
+                          server: { type: string, nullable: true }
+                          subscriptions: { type: integer, example: 1 }
+                      opa:
+                        type: object
+                        properties:
+                          enabled: { type: boolean, example: true }
+                          url: { type: string, nullable: true }
+                      map:
+                        type: object
+                        properties:
+                          enabled: { type: boolean, example: true }
+                          provider: { type: string, example: ors }
+                          url: { type: string, nullable: true }
+
+  /metrics:
+    get:
+      tags: [Métricas]
+      summary: Expor métricas no formato Prometheus
+      description: Retorna métricas de aplicação para scraping (Prometheus)
+      responses:
+        '200':
+          description: Métricas Prometheus
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total Total de requisições HTTP
+                  # TYPE http_requests_total counter
+
+  # ==================== TRACKING ====================
+  /tracking/deliveries:
+    get:
+      tags: [Tracking]
+      summary: Listar entregas por status
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: Status para filtro
+          schema:
+            type: string
+            enum: [PENDENTE, ATRIBUIDA, COLETADA, EM_TRANSITO, ENTREGUE, CANCELADA]
+      responses:
+        '200':
+          description: Lista de entregas filtradas por status
+
+  /tracking/deliveries/{deliveryId}:
+    get:
+      tags: [Tracking]
+      summary: Obter tracking de uma entrega
+      parameters:
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tracking atual da entrega
+    post:
+      tags: [Tracking]
+      summary: Atualizar posição de uma entrega
+      parameters:
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng]
+              properties:
+                lat: { type: number, example: -23.55 }
+                lng: { type: number, example: -46.63 }
+      responses:
+        '200':
+          description: Posição atualizada
 
   # ==================== ENTREGADORES ====================
   /entregadores:
     get:
-      tags:
-        - Entregadores
+      tags: [Entregadores]
       summary: Listar todos os entregadores
       description: Retorna uma lista de entregadores com opção de filtro por status
       parameters:
@@ -90,18 +181,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  success: { type: boolean }
                   data:
                     type: array
                     items:
                       $ref: '#/components/schemas/Entregador'
-                  total:
-                    type: integer
+                  total: { type: integer }
 
     post:
-      tags:
-        - Entregadores
+      tags: [Entregadores]
       summary: Criar novo entregador
       description: Cadastra um novo entregador no sistema
       requestBody:
@@ -118,10 +206,8 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
+                  success: { type: boolean }
+                  message: { type: string }
                   data:
                     $ref: '#/components/schemas/Entregador'
         '400':
@@ -131,8 +217,7 @@ paths:
 
   /entregadores/{id}:
     get:
-      tags:
-        - Entregadores
+      tags: [Entregadores]
       summary: Buscar entregador por ID
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -144,16 +229,14 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  success: { type: boolean }
                   data:
                     $ref: '#/components/schemas/Entregador'
         '404':
           $ref: '#/components/responses/NotFound'
 
     put:
-      tags:
-        - Entregadores
+      tags: [Entregadores]
       summary: Atualizar entregador
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -171,18 +254,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
+                  success: { type: boolean }
+                  message: { type: string }
                   data:
                     $ref: '#/components/schemas/Entregador'
         '404':
           $ref: '#/components/responses/NotFound'
 
     delete:
-      tags:
-        - Entregadores
+      tags: [Entregadores]
       summary: Deletar entregador
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -195,8 +275,7 @@ paths:
   # ==================== VEÍCULOS ====================
   /veiculos:
     get:
-      tags:
-        - Veículos
+      tags: [Veículos]
       summary: Listar todos os veículos
       parameters:
         - name: status
@@ -217,18 +296,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  success: { type: boolean }
                   data:
                     type: array
                     items:
                       $ref: '#/components/schemas/Veiculo'
-                  total:
-                    type: integer
+                  total: { type: integer }
 
     post:
-      tags:
-        - Veículos
+      tags: [Veículos]
       summary: Criar novo veículo
       requestBody:
         required: true
@@ -244,17 +320,14 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
+                  success: { type: boolean }
+                  message: { type: string }
                   data:
                     $ref: '#/components/schemas/Veiculo'
 
   /veiculos/{id}:
     get:
-      tags:
-        - Veículos
+      tags: [Veículos]
       summary: Buscar veículo por ID
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -266,14 +339,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  success: { type: boolean }
                   data:
                     $ref: '#/components/schemas/Veiculo'
 
     put:
-      tags:
-        - Veículos
+      tags: [Veículos]
       summary: Atualizar veículo
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -288,8 +359,7 @@ paths:
           description: Veículo atualizado
 
     delete:
-      tags:
-        - Veículos
+      tags: [Veículos]
       summary: Deletar veículo
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -300,8 +370,7 @@ paths:
   # ==================== ALUGUÉIS ====================
   /alugueis:
     get:
-      tags:
-        - Aluguéis
+      tags: [Aluguéis]
       summary: Listar todos os aluguéis
       parameters:
         - name: entregadorId
@@ -321,18 +390,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
+                  success: { type: boolean }
                   data:
                     type: array
                     items:
                       $ref: '#/components/schemas/Aluguel'
-                  total:
-                    type: integer
+                  total: { type: integer }
 
     post:
-      tags:
-        - Aluguéis
+      tags: [Aluguéis]
       summary: Criar novo aluguel
       requestBody:
         required: true
@@ -346,8 +412,7 @@ paths:
 
   /alugueis/{id}:
     get:
-      tags:
-        - Aluguéis
+      tags: [Aluguéis]
       summary: Buscar aluguel por ID
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -357,8 +422,7 @@ paths:
 
   /alugueis/{id}/finalizar:
     patch:
-      tags:
-        - Aluguéis
+      tags: [Aluguéis]
       summary: Finalizar aluguel
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -368,8 +432,7 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - dataFim
+              required: [dataFim]
               properties:
                 dataFim:
                   type: string
@@ -381,8 +444,7 @@ paths:
 
   /alugueis/{id}/cancelar:
     patch:
-      tags:
-        - Aluguéis
+      tags: [Aluguéis]
       summary: Cancelar aluguel
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -393,8 +455,7 @@ paths:
   # ==================== ENTREGAS ====================
   /entregas:
     get:
-      tags:
-        - Entregas
+      tags: [Entregas]
       summary: Listar todas as entregas
       parameters:
         - name: entregadorId
@@ -415,8 +476,7 @@ paths:
           description: Lista de entregas
 
     post:
-      tags:
-        - Entregas
+      tags: [Entregas]
       summary: Criar nova entrega
       requestBody:
         required: true
@@ -430,8 +490,7 @@ paths:
 
   /entregas/{id}:
     get:
-      tags:
-        - Entregas
+      tags: [Entregas]
       summary: Buscar entrega por ID
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -441,8 +500,7 @@ paths:
 
   /entregas/{id}/status:
     patch:
-      tags:
-        - Entregas
+      tags: [Entregas]
       summary: Atualizar status da entrega
       parameters:
         - $ref: '#/components/parameters/IdParam'
@@ -452,8 +510,7 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - status
+              required: [status]
               properties:
                 status:
                   type: string
@@ -462,7 +519,6 @@ paths:
         '200':
           description: Status atualizado
 
-# ==================== COMPONENTS ====================
 components:
   parameters:
     IdParam:
@@ -477,20 +533,13 @@ components:
     Entregador:
       type: object
       properties:
-        Id:
-          type: integer
-        Nome:
-          type: string
-        Documento:
-          type: string
-        CNH:
-          type: string
-        CNHCategoria:
-          type: string
-        Email:
-          type: string
-        Telefone:
-          type: string
+        Id: { type: integer }
+        Nome: { type: string }
+        Documento: { type: string }
+        CNH: { type: string }
+        CNHCategoria: { type: string }
+        Email: { type: string }
+        Telefone: { type: string }
         DataNascimento:
           type: string
           format: date
@@ -506,14 +555,7 @@ components:
 
     CreateEntregadorRequest:
       type: object
-      required:
-        - nome
-        - documento
-        - cnh
-        - cnhCategoria
-        - email
-        - telefone
-        - dataNascimento
+      required: [nome, documento, cnh, cnhCategoria, email, telefone, dataNascimento]
       properties:
         nome:
           type: string
@@ -543,12 +585,9 @@ components:
     UpdateEntregadorRequest:
       type: object
       properties:
-        nome:
-          type: string
-        email:
-          type: string
-        telefone:
-          type: string
+        nome: { type: string }
+        email: { type: string }
+        telefone: { type: string }
         status:
           type: string
           enum: [ATIVO, INATIVO, BLOQUEADO]
@@ -556,51 +595,29 @@ components:
     Veiculo:
       type: object
       properties:
-        Id:
-          type: integer
-        Tipo:
-          type: string
-        Placa:
-          type: string
-        Modelo:
-          type: string
-        Marca:
-          type: string
-        Ano:
-          type: integer
-        PrecoDiaria:
-          type: number
-        Status:
-          type: string
-        LocadorId:
-          type: integer
+        Id: { type: integer }
+        Tipo: { type: string }
+        Placa: { type: string }
+        Modelo: { type: string }
+        Marca: { type: string }
+        Ano: { type: integer }
+        PrecoDiaria: { type: number }
+        Status: { type: string }
+        LocadorId: { type: integer }
 
     CreateVeiculoRequest:
       type: object
-      required:
-        - tipo
-        - placa
-        - modelo
-        - marca
-        - ano
-        - precoDiaria
-        - locadorId
+      required: [tipo, placa, modelo, marca, ano, precoDiaria, locadorId]
       properties:
         tipo:
           type: string
           enum: [MOTOCICLETA, CARRO, BICICLETA]
-        placa:
-          type: string
-        modelo:
-          type: string
-        marca:
-          type: string
-        ano:
-          type: integer
-        precoDiaria:
-          type: number
-        locadorId:
-          type: integer
+        placa: { type: string }
+        modelo: { type: string }
+        marca: { type: string }
+        ano: { type: integer }
+        precoDiaria: { type: number }
+        locadorId: { type: integer }
 
     UpdateVeiculoRequest:
       type: object
@@ -608,14 +625,12 @@ components:
         status:
           type: string
           enum: [DISPONIVEL, ALUGADO, MANUTENCAO]
-        precoDiaria:
-          type: number
+        precoDiaria: { type: number }
 
     Aluguel:
       type: object
       properties:
-        Id:
-          type: integer
+        Id: { type: integer }
         DataInicio:
           type: string
           format: date
@@ -623,52 +638,31 @@ components:
           type: string
           format: date
           nullable: true
-        Valor:
-          type: number
-        Status:
-          type: string
-        VeiculoId:
-          type: integer
-        EntregadorId:
-          type: integer
+        Valor: { type: number }
+        Status: { type: string }
+        VeiculoId: { type: integer }
+        EntregadorId: { type: integer }
 
     CreateAluguelRequest:
       type: object
-      required:
-        - dataInicio
-        - entregadorId
-        - veiculoId
+      required: [dataInicio, entregadorId, veiculoId]
       properties:
         dataInicio:
           type: string
           format: date
-        entregadorId:
-          type: integer
-        veiculoId:
-          type: integer
+        entregadorId: { type: integer }
+        veiculoId: { type: integer }
 
     CreateEntregaRequest:
       type: object
-      required:
-        - pedidoId
-        - entregadorId
-        - aluguelId
-        - enderecoColeta
-        - enderecoEntrega
-        - taxaEntrega
+      required: [pedidoId, entregadorId, aluguelId, enderecoColeta, enderecoEntrega, taxaEntrega]
       properties:
-        pedidoId:
-          type: string
-        entregadorId:
-          type: integer
-        aluguelId:
-          type: integer
-        enderecoColeta:
-          type: string
-        enderecoEntrega:
-          type: string
-        taxaEntrega:
-          type: number
+        pedidoId: { type: string }
+        entregadorId: { type: integer }
+        aluguelId: { type: integer }
+        enderecoColeta: { type: string }
+        enderecoEntrega: { type: string }
+        taxaEntrega: { type: number }
 
   responses:
     BadRequest:
@@ -715,6 +709,9 @@ components:
                 type: boolean
                 example: false
               error:
-
                 type: object
-
+                properties:
+                  message:
+                    type: string
+                  statusCode:
+                    type: integer
