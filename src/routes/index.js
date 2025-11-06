@@ -3,17 +3,42 @@ const entregadoresRoutes = require('./entregadores.routes');
 const veiculosRoutes = require('./veiculos.routes');
 const alugueisRoutes = require('./alugueis.routes');
 const entregasRoutes = require('./entregas.routes');
+const trackingRoutes = require('./tracking.routes');
+const natsClient = require('../messaging/natsClient');
+const authPolicyClient = require('../auth/AuthPolicyClient');
+const mapAdapter = require('../adapters/MapIntegrationAdapter');
+const metrics = require('../utils/metrics');
 
 const router = express.Router();
 
 // Health Check
 router.get('/health', (req, res) => {
+  const natsStatus = natsClient.getStatus();
+  const opaStatus = authPolicyClient.getStatus();
+  const mapStatus = mapAdapter.getStatus();
+  
   res.json({
     status: 'UP',
     timestamp: new Date().toISOString(),
     service: 'Delivery Service',
-    version: '1.0.0'
+    version: '1.0.0',
+    integrations: {
+      nats: natsStatus,
+      opa: opaStatus,
+      map: mapStatus
+    }
   });
+});
+
+// Metrics endpoint
+router.get('/metrics', async (req, res) => {
+  try {
+    const metricsData = await metrics.getMetrics();
+    res.set('Content-Type', metrics.getContentType());
+    res.send(metricsData);
+  } catch (error) {
+    res.status(500).json({ error: 'Error collecting metrics' });
+  }
 });
 
 // Rotas principais
@@ -21,5 +46,6 @@ router.use('/entregadores', entregadoresRoutes);
 router.use('/veiculos', veiculosRoutes);
 router.use('/alugueis', alugueisRoutes);
 router.use('/entregas', entregasRoutes);
+router.use('/tracking', trackingRoutes);
 
 module.exports = router;

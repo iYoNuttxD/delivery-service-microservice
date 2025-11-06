@@ -1,6 +1,8 @@
 const EntregaRepository = require('../repositories/EntregaRepository');
 const AluguelRepository = require('../repositories/AluguelRepository');
 const logger = require('../utils/logger');
+const EventPublisher = require('../messaging/EventPublisher');
+const metrics = require('../utils/metrics');
 
 class EntregaService {
   async getAllEntregas(filters = {}) {
@@ -53,6 +55,9 @@ class EntregaService {
       const entrega = await EntregaRepository.create(data);
       logger.info('Entrega criada com sucesso', { id: entrega.Id });
       
+      // Publish delivery created event
+      await EventPublisher.publishDeliveryCreated(entrega);
+      
       return entrega;
     } catch (error) {
       logger.error('Erro ao criar entrega', { error: error.message });
@@ -93,6 +98,17 @@ class EntregaService {
       
       const entregaAtualizada = await EntregaRepository.updateStatus(id, status, additionalData);
       logger.info('Status da entrega atualizado com sucesso', { id, status });
+      
+      // Publish status change event
+      await EventPublisher.publishDeliveryStatusChange(id, status, additionalData);
+      
+      // Record metrics
+      metrics.recordDeliveryStatusChange(entrega.Status, status);
+      
+      // Publish completed event if delivered
+      if (status === 'ENTREGUE') {
+        await EventPublisher.publishDeliveryCompleted(entregaAtualizada);
+      }
       
       return entregaAtualizada;
     } catch (error) {

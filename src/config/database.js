@@ -13,7 +13,7 @@ const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   server: process.env.DB_SERVER || process.env.DB_HOST, // aceita DB_SERVER (preferido) ou DB_HOST
-  database: process.env.DB_NAME,
+  database: process.env.DB_NAME || process.env.DB_DATABASE, // aceita DB_NAME (preferido) ou DB_DATABASE
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433,
   options: {
     encrypt: process.env.DB_ENCRYPT ? process.env.DB_ENCRYPT === 'true' : true,

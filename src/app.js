@@ -9,8 +9,11 @@ require('dotenv').config();
 
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
+const metricsMiddleware = require('./middlewares/metricsMiddleware');
 const logger = require('./utils/logger');
 const { getConnection, closeConnection } = require('./config/database');
+const natsClient = require('./messaging/natsClient');
+const eventSubscriber = require('./messaging/EventSubscriber');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +24,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(metricsMiddleware);
 
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
@@ -67,6 +71,20 @@ const server = app.listen(PORT, async () => {
     logger.error('❌ Erro ao conectar ao banco:', error);
     process.exit(1);
   }
+
+  // Initialize NATS connection if configured
+  try {
+    await natsClient.connect();
+    if (natsClient.isConnected) {
+      logger.info('✅ NATS conectado');
+      
+      // Initialize event subscriber
+      await eventSubscriber.initialize();
+      logger.info('✅ Event Subscriber inicializado');
+    }
+  } catch (error) {
+    logger.warn('⚠️  NATS não disponível. Continuando sem mensageria.', { error: error.message });
+  }
 });
 
 // Graceful shutdown
@@ -74,6 +92,7 @@ process.on('SIGTERM', async () => {
   console.log('⚠️  SIGTERM recebido, fechando servidor...');
   server.close(async () => {
     await closeConnection();
+    await natsClient.close();
     console.log('✅ Servidor encerrado');
     process.exit(0);
   });
