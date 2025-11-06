@@ -5,12 +5,13 @@ jest.mock('../../src/infra/opa/authPolicyClient');
 
 describe('opaAuthorization middleware', () => {
   let req, res, next;
+  let originalOpaUrl;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
     // Save original env
-    this.originalOpaUrl = process.env.OPA_URL;
+    originalOpaUrl = process.env.OPA_URL;
     
     req = {
       headers: {
@@ -30,8 +31,8 @@ describe('opaAuthorization middleware', () => {
 
   afterEach(() => {
     // Restore original env
-    if (this.originalOpaUrl) {
-      process.env.OPA_URL = this.originalOpaUrl;
+    if (originalOpaUrl) {
+      process.env.OPA_URL = originalOpaUrl;
     } else {
       delete process.env.OPA_URL;
     }

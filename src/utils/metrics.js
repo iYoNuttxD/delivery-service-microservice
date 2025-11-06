@@ -59,6 +59,11 @@ const trackingUpdates = new promClient.Counter({
   help: 'Total number of tracking position updates'
 });
 
+const metricsErrors = new promClient.Counter({
+  name: 'delivery_service_metrics_errors_total',
+  help: 'Total number of errors generating metrics'
+});
+
 // Register custom metrics
 register.registerMetric(httpRequestDuration);
 register.registerMetric(httpRequestTotal);
@@ -68,6 +73,7 @@ register.registerMetric(natsEventsReceived);
 register.registerMetric(opaAuthorizationChecks);
 register.registerMetric(mapApiCalls);
 register.registerMetric(trackingUpdates);
+register.registerMetric(metricsErrors);
 
 // Middleware to track HTTP requests
 const metricsMiddleware = (req, res, next) => {
@@ -104,6 +110,7 @@ const metricsHandler = async (req, res) => {
     res.send(metrics);
   } catch (error) {
     logger.error('Erro ao gerar métricas', { error: error.message });
+    metricsErrors.inc();
     res.status(500).send('Erro ao gerar métricas');
   }
 };

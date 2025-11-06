@@ -4,16 +4,18 @@ const axios = require('axios');
 jest.mock('axios');
 
 describe('MapIntegrationAdapter', () => {
+  let originalMapsApiKey;
+  
   beforeEach(() => {
     jest.clearAllMocks();
     // Save original env
-    this.originalMapsApiKey = process.env.MAPS_API_KEY;
+    originalMapsApiKey = process.env.MAPS_API_KEY;
   });
 
   afterEach(() => {
     // Restore original env
-    if (this.originalMapsApiKey) {
-      process.env.MAPS_API_KEY = this.originalMapsApiKey;
+    if (originalMapsApiKey) {
+      process.env.MAPS_API_KEY = originalMapsApiKey;
     } else {
       delete process.env.MAPS_API_KEY;
     }
