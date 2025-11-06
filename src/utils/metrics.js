@@ -3,7 +3,8 @@ const logger = require('./logger');
 
 class MetricsCollector {
   constructor() {
-    this.enabled = process.env.METRICS_ENABLED !== 'false'; // Default enabled
+    // Metrics enabled by default, can be disabled by setting METRICS_ENABLED=false
+    this.enabled = process.env.METRICS_ENABLED !== 'false';
     
     if (!this.enabled) {
       logger.info('Coleta de métricas desabilitada');

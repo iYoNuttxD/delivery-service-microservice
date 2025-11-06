@@ -1,6 +1,9 @@
 const EntregaRepository = require('../repositories/EntregaRepository');
 const logger = require('../utils/logger');
 
+// Active delivery statuses
+const ACTIVE_DELIVERY_STATUSES = ['ATRIBUIDA', 'COLETADA', 'EM_TRANSITO'];
+
 class TrackingService {
   async getDeliveryTracking(deliveryId) {
     try {
@@ -66,13 +69,12 @@ class TrackingService {
     try {
       logger.info('Buscando entregas ativas do entregador', { driverId });
       
-      const activeStatuses = ['ATRIBUIDA', 'COLETADA', 'EM_TRANSITO'];
       const deliveries = await EntregaRepository.findAll({ 
         entregadorId: driverId 
       });
       
       return deliveries
-        .filter(d => activeStatuses.includes(d.Status))
+        .filter(d => ACTIVE_DELIVERY_STATUSES.includes(d.Status))
         .map(delivery => ({
           deliveryId: delivery.Id,
           pedidoId: delivery.PedidoId,

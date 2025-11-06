@@ -7,9 +7,15 @@ class EventSubscriber {
   }
 
   async initialize() {
-    // Don't initialize if NATS is not configured
-    if (!natsClient.isConnected && !process.env.NATS_URL) {
-      logger.info('EventSubscriber não inicializado: NATS não configurado');
+    // Don't initialize if NATS URL is not configured
+    if (!process.env.NATS_URL) {
+      logger.info('EventSubscriber não inicializado: NATS_URL não configurado');
+      return;
+    }
+
+    // Wait for NATS connection if not already connected
+    if (!natsClient.isConnected) {
+      logger.warn('NATS não conectado ainda. EventSubscriber aguardando conexão.');
       return;
     }
 
