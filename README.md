@@ -56,6 +56,40 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 - Rastreamento de status com máquina de estados
 - Timestamps automáticos (coleta/entrega)
 - Integração com microservice de pedidos
+- **Publicação de eventos via NATS** (delivery.status.changed, delivery.created, delivery.completed)
+
+### ✅ **Rastreamento e Tracking**
+- Endpoint de rastreamento de entregas individuais
+- Consulta de entregas por status
+- Entregas ativas por entregador
+- Timeline detalhada de cada entrega
+- Cálculo de ETA (tempo estimado de entrega)
+
+### ✅ **Event-Driven Architecture (EDA)**
+- Cliente NATS para mensageria pub/sub
+- EventPublisher para eventos de entrega
+- EventSubscriber para eventos de pedidos
+- Configuração totalmente via variáveis de ambiente
+- Graceful degradation quando NATS não está disponível
+
+### ✅ **Integração com Mapas**
+- MapIntegrationAdapter para cálculo de rotas
+- Geocodificação de endereços
+- Geocodificação reversa
+- Suporte para múltiplos provedores (Google Maps, Azure Maps, etc.)
+- Fallback para dados mock quando serviço não está disponível
+
+### ✅ **Autorização com OPA**
+- AuthPolicyClient para Open Policy Agent
+- Autorização baseada em políticas
+- Configuração fail-open ou fail-closed
+- Suporte para autenticação de drivers e admins
+
+### ✅ **Observabilidade**
+- Métricas Prometheus (requisições HTTP, eventos NATS, status de entregas)
+- Endpoint /metrics para coleta de métricas
+- Health check com status de integrações
+- Logging estruturado com Winston
 
 ### ✅ **Recursos Técnicos**
 - Arquitetura em camadas (Repository → Service → Controller)
@@ -77,6 +111,9 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 | **Express.js** | 4.18 | Framework web |
 | **mssql** | 10.0 | Driver Azure SQL Server |
 | **Azure SQL Server** | 2022 | Banco de dados |
+| **NATS** | Latest | Sistema de mensageria pub/sub |
+| **Prometheus** | - | Métricas e monitoramento |
+| **OPA** | - | Open Policy Agent (autorização) |
 | **Winston** | 3.11 | Sistema de logs |
 | **Swagger UI** | 5.0 | Documentação API |
 | **Jest** | 29.7 | Framework de testes |
@@ -158,19 +195,43 @@ npm install
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` com suas credenciais do Azure SQL Server:
+Edite o arquivo `.env` com suas credenciais do Azure SQL Server e serviços opcionais:
 
 ```env
-NODE_ENV=development
+# Application
+NODE_ENV=production
 PORT=3001
 
+# Azure SQL Server (OBRIGATÓRIO)
 DB_SERVER=your-server.database.windows.net
-DB_DATABASE=DeliveryServiceDB
+DB_NAME=DeliveryServiceDB
 DB_USER=your-username
 DB_PASSWORD=your-password
+DB_ENCRYPT=true
 
+# NATS Messaging (OPCIONAL - deixe vazio para desabilitar)
+NATS_URL=nats://your-nats-server.com:4222
+NATS_USER=your-nats-user
+NATS_PASSWORD=your-nats-password
+
+# OPA Authorization (OPCIONAL - deixe vazio para desabilitar)
+OPA_URL=http://your-opa-server.com:8181
+OPA_FAIL_OPEN=false
+
+# Map Integration (OPCIONAL - deixe vazio para desabilitar)
+MAP_SERVICE_URL=https://your-map-service.com
+MAP_API_KEY=your-api-key
+
+# Logging & Metrics
 LOG_LEVEL=info
+METRICS_ENABLED=true
 ```
+
+**⚠️ IMPORTANTE - Cloud-First Configuration:**
+- **Nenhuma variável tem default para localhost**
+- Todos os serviços opcionais (NATS, OPA, Map) podem ser desabilitados deixando as variáveis vazias
+- O serviço continua funcionando normalmente mesmo sem as integrações opcionais
+- Apenas Azure SQL Server é obrigatório
 
 ### **4. Criar Banco de Dados**
 
@@ -258,6 +319,85 @@ npm run test:db
 
 ```http
 GET /api/v1/health
+```
+
+Retorna o status do serviço e suas integrações:
+
+```json
+{
+  "status": "UP",
+  "timestamp": "2023-11-06T16:00:00.000Z",
+  "service": "Delivery Service",
+  "version": "1.0.0",
+  "integrations": {
+    "nats": {
+      "connected": true,
+      "server": "nats://nats.example.com:4222",
+      "subscriptions": 2
+    },
+    "opa": {
+      "enabled": true,
+      "url": "http://opa.example.com:8181"
+    },
+    "map": {
+      "enabled": true,
+      "provider": "google"
+    }
+  }
+}
+```
+
+### **Metrics (Prometheus)**
+
+```http
+GET /api/v1/metrics
+```
+
+Retorna métricas no formato Prometheus para monitoramento.
+
+### **Rastreamento de Entregas**
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/api/v1/tracking/deliveries/:id` | Rastrear entrega específica |
+| GET | `/api/v1/tracking/deliveries?status=PENDENTE` | Listar entregas por status |
+| GET | `/api/v1/tracking/drivers/:driverId/deliveries` | Entregas ativas de um entregador |
+
+**Exemplo - Rastrear Entrega:**
+
+```bash
+curl http://localhost:3001/api/v1/tracking/deliveries/1
+```
+
+**Resposta:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "deliveryId": 1,
+    "pedidoId": "ORDER-123",
+    "status": "EM_TRANSITO",
+    "currentLocation": null,
+    "timeline": [
+      {
+        "status": "PENDENTE",
+        "timestamp": "2023-11-06T10:00:00.000Z",
+        "description": "Entrega criada"
+      },
+      {
+        "status": "COLETADA",
+        "timestamp": "2023-11-06T11:00:00.000Z",
+        "description": "Pedido coletado"
+      }
+    ],
+    "estimatedDeliveryTime": "2023-11-06T12:00:00.000Z",
+    "driver": {
+      "id": 10,
+      "name": "João Silva"
+    }
+  }
+}
 ```
 
 ### **Entregadores**
@@ -395,6 +535,70 @@ docker-compose up -d
 
 ---
 
+## 🔄 **Event-Driven Architecture**
+
+O microservice suporta arquitetura orientada a eventos via NATS.
+
+### **Eventos Publicados**
+
+#### `delivery.status.changed`
+Publicado quando o status de uma entrega muda.
+
+```json
+{
+  "deliveryId": 1,
+  "status": "ENTREGUE",
+  "timestamp": "2023-11-06T12:00:00.000Z",
+  "horaEntrega": "2023-11-06T12:00:00.000Z"
+}
+```
+
+#### `delivery.created`
+Publicado quando uma nova entrega é criada.
+
+```json
+{
+  "deliveryId": 1,
+  "pedidoId": "ORDER-123",
+  "entregadorId": 10,
+  "status": "PENDENTE",
+  "timestamp": "2023-11-06T10:00:00.000Z"
+}
+```
+
+#### `delivery.completed`
+Publicado quando uma entrega é concluída.
+
+```json
+{
+  "deliveryId": 1,
+  "pedidoId": "ORDER-123",
+  "entregadorId": 10,
+  "horaEntrega": "2023-11-06T12:00:00.000Z",
+  "timestamp": "2023-11-06T12:00:00.000Z"
+}
+```
+
+### **Eventos Recebidos**
+
+O EventSubscriber pode ser configurado para escutar eventos de outros serviços:
+
+- Configure `ORDER_CREATED_SUBJECT` para receber eventos de pedidos criados
+- Configure `ADDITIONAL_SUBJECTS` (separados por vírgula) para outros eventos
+
+**Exemplo:**
+
+```env
+ORDER_CREATED_SUBJECT=order.created
+ADDITIONAL_SUBJECTS=payment.confirmed,inventory.updated
+```
+
+### **Graceful Degradation**
+
+Se o NATS não estiver configurado (`NATS_URL` vazio), o serviço continua funcionando normalmente sem mensageria. Eventos não são publicados nem recebidos, mas todas as outras funcionalidades permanecem operacionais.
+
+---
+
 ## ☁️ **Deploy Azure**
 
 ### **Azure App Service**
@@ -409,16 +613,63 @@ az webapp up \
   --resource-group erp-builders-rg \
   --runtime "NODE:18-lts"
 
-# Configurar variáveis de ambiente
+# Configurar variáveis de ambiente - Database (OBRIGATÓRIO)
 az webapp config appsettings set \
   --name delivery-service-api \
   --resource-group erp-builders-rg \
   --settings \
+    NODE_ENV="production" \
     DB_SERVER="your-server.database.windows.net" \
-    DB_DATABASE="DeliveryServiceDB" \
+    DB_NAME="DeliveryServiceDB" \
     DB_USER="your-user" \
-    DB_PASSWORD="your-password"
+    DB_PASSWORD="your-password" \
+    DB_ENCRYPT="true"
+
+# Configurar NATS (OPCIONAL)
+az webapp config appsettings set \
+  --name delivery-service-api \
+  --resource-group erp-builders-rg \
+  --settings \
+    NATS_URL="nats://your-nats.example.com:4222" \
+    NATS_USER="delivery-service" \
+    NATS_PASSWORD="your-nats-password" \
+    ORDER_CREATED_SUBJECT="order.created"
+
+# Configurar OPA (OPCIONAL)
+az webapp config appsettings set \
+  --name delivery-service-api \
+  --resource-group erp-builders-rg \
+  --settings \
+    OPA_URL="http://your-opa.example.com:8181" \
+    OPA_FAIL_OPEN="false"
+
+# Configurar Map Service (OPCIONAL)
+az webapp config appsettings set \
+  --name delivery-service-api \
+  --resource-group erp-builders-rg \
+  --settings \
+    MAP_SERVICE_URL="https://your-map-service.com" \
+    MAP_API_KEY="your-api-key" \
+    MAP_PROVIDER="google"
+
+# Configurar Logging e Metrics
+az webapp config appsettings set \
+  --name delivery-service-api \
+  --resource-group erp-builders-rg \
+  --settings \
+    LOG_LEVEL="info" \
+    METRICS_ENABLED="true"
 ```
+
+**✅ Cloud-Ready Checklist:**
+- ✅ Nenhuma configuração aponta para localhost
+- ✅ Todas as integrações são opcionais (exceto Azure SQL)
+- ✅ Graceful degradation quando serviços não estão disponíveis
+- ✅ Métricas Prometheus para monitoramento
+- ✅ Health check com status de todas integrações
+- ✅ Event-driven architecture com NATS
+- ✅ Autorização com OPA
+- ✅ Integração com serviços de mapa
 
 ### **Azure Container Instances**
 
@@ -444,32 +695,50 @@ delivery-service-microservice/
 │   │   ├── EntregadorController.js
 │   │   ├── VeiculoController.js
 │   │   ├── AluguelController.js
-│   │   └── EntregaController.js
+│   │   ├── EntregaController.js
+│   │   └── TrackingController.js    # Rastreamento de entregas
 │   ├── services/
 │   │   ├── EntregadorService.js     # Regras de negócio
 │   │   ├── VeiculoService.js
 │   │   ├── AluguelService.js
-│   │   └── EntregaService.js
+│   │   ├── EntregaService.js
+│   │   └── TrackingService.js       # Serviço de rastreamento
 │   ├── repositories/
 │   │   ├── EntregadorRepository.js  # Acesso a dados
 │   │   ├── VeiculoRepository.js
 │   │   ├── AluguelRepository.js
 │   │   └── EntregaRepository.js
+│   ├── messaging/                   # Event-Driven Architecture
+│   │   ├── natsClient.js            # Cliente NATS
+│   │   ├── EventPublisher.js        # Publicador de eventos
+│   │   └── EventSubscriber.js       # Assinante de eventos
+│   ├── auth/                        # Autorização
+│   │   └── AuthPolicyClient.js      # Cliente OPA
+│   ├── adapters/                    # Integrações externas
+│   │   └── MapIntegrationAdapter.js # Integração de mapas
 │   ├── routes/
 │   │   ├── index.js
 │   │   ├── entregadores.routes.js
 │   │   ├── veiculos.routes.js
 │   │   ├── alugueis.routes.js
-│   │   └── entregas.routes.js
+│   │   ├── entregas.routes.js
+│   │   └── tracking.routes.js       # Rotas de rastreamento
 │   ├── middlewares/
 │   │   ├── errorHandler.js
-│   │   └── validator.js
+│   │   ├── validator.js
+│   │   └── metricsMiddleware.js     # Middleware de métricas
 │   ├── utils/
-│   │   └── logger.js
+│   │   ├── logger.js
+│   │   └── metrics.js               # Coletor de métricas Prometheus
 │   └── app.js                       # Aplicação principal
 ├── tests/
 │   ├── unit/
+│   │   ├── EntregadorService.test.js
+│   │   ├── EventPublisher.test.js
+│   │   ├── TrackingService.test.js
+│   │   └── MapIntegrationAdapter.test.js
 │   └── integration/
+│       └── entregador.test.js
 ├── scripts/
 │   └── schema-delivery-azure.sql    # Scripts SQL
 ├── logs/                            # Arquivos de log
