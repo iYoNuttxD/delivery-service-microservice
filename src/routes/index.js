@@ -1,9 +1,9 @@
 const express = require('express');
-const entregadoresRoutes = require('./entregadores.routes');
-const veiculosRoutes = require('./veiculos.routes');
-const alugueisRoutes = require('./alugueis.routes');
-const entregasRoutes = require('./entregas.routes');
-const trackingRoutes = require('./tracking.routes');
+const entregadoresRoutes = require('../features/drivers/http/router');
+const veiculosRoutes = require('../features/vehicles/http/router');
+const alugueisRoutes = require('../features/rentals/http/router');
+const entregasRoutes = require('../features/deliveries/http/router');
+const trackingRoutes = require('../features/tracking/http/router');
 const container = require('../main/container');
 const metrics = require('../utils/metrics');
 
