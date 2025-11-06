@@ -29,7 +29,7 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 - [Arquitetura](#-arquitetura)
 - [Pré-requisitos](#-pré-requisitos)
 - [Instalação](#-instalação)
-- [Configuração](#-configuração)
+- [Configuração](#-configuração-cloud-first)
 - [Executar Projeto](#-executar-projeto)
 - [Testes Rápidos (curl)](#-testes-rápidos-curl)
 - [API Endpoints](#-api-endpoints)
@@ -112,9 +112,9 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 |------------|--------|-----------|
 | **Node.js** | 18+ | Runtime JavaScript |
 | **Express.js** | 4.18 | Framework web |
-| **mssql** | 10.0 | Driver Azure SQL Server |
+| **mssql** | 12.1 | Driver Azure SQL Server |
 | **Azure SQL Server** | 2022 | Banco de dados |
-| **NATS** | Latest | Sistema de mensageria pub/sub |
+| **NATS** | 2.29 | Sistema de mensageria pub/sub |
 | **Prometheus** | - | Métricas e monitoramento |
 | **OPA** | - | Open Policy Agent (autorização) |
 | **Winston** | 3.11 | Sistema de logs |
@@ -170,64 +170,43 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 
 ## 📦 Pré-requisitos
 
-- **Node.js** 18 ou superior
-- **Azure SQL Server** (ou SQL Server local)
-- **Docker** (opcional)
-- **Git**
+- Node.js 18+
+- Azure SQL Server
+- Docker (opcional)
+- Git
 
 ---
 
 ## 🚀 Instalação
 
-### 1) Clonar Repositório
-
 ```bash
 git clone https://github.com/iYoNuttxD/delivery-service-microservice.git
 cd delivery-service-microservice
-```
-
-### 2) Instalar Dependências
-
-```bash
 npm install
-```
-
-### 3) Configurar Variáveis de Ambiente
-
-```bash
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` com suas credenciais do Azure SQL Server e serviços opcionais:
+---
+
+## 🧩 Configuração (Cloud-first)
 
 ```env
-# Application
-NODE_ENV=production
-PORT=3001
-
-# Azure SQL Server (OBRIGATÓRIO)
-DB_SERVER=your-server.database.windows.net
-DB_NAME=DeliveryServiceDB
-DB_USER=your-username
-DB_PASSWORD=your-password
-DB_ENCRYPT=true
-
-# NATS (OPCIONAL - deixe vazio para desabilitar)
+# NATS (exemplo com demo)
 NATS_URL=nats://demo.nats.io:4222
 DELIVERY_STATUS_SUBJECT=delivery.iYoNuttxD.7f2a.delivery.status.changed
 DELIVERY_CREATED_SUBJECT=delivery.iYoNuttxD.7f2a.delivery.created
 DELIVERY_COMPLETED_SUBJECT=delivery.iYoNuttxD.7f2a.delivery.completed
 ORDER_CREATED_SUBJECT=delivery.iYoNuttxD.7f2a.order.created
 
-# OPA (OPCIONAL - via Cloudflare Worker compatível)
+# OPA (Cloudflare Worker compatível com OPA)
 OPA_URL=https://SEU-OPA-WORKER.workers.dev
 OPA_POLICY_PATH=v1/data/delivery/authz/allow
 OPA_FAIL_OPEN=true
 
-# Mapas (OPCIONAL - via Cloudflare Worker + ORS)
+# Mapas (Cloudflare Worker + ORS)
 MAP_SERVICE_URL=https://SEU-MAP-WORKER.workers.dev
 MAP_PROVIDER=ors
-# Se preferir enviar a key do ORS do app (opcional):
+# (Opcional) enviar key do ORS do app:
 # MAP_API_KEY=YOUR_ORS_KEY
 
 # Logging & Metrics
@@ -235,169 +214,152 @@ LOG_LEVEL=info
 METRICS_ENABLED=true
 ```
 
-**⚠️ Cloud-First:**
-- Serviços opcionais (NATS, OPA, Mapas) podem ficar vazios; o app mantém funcionamento básico.
-- Evite apontar para `localhost` em produção; use Workers/domínios públicos.
+**Dicas de teste (Windows CMD):** escape `"` no JSON ou use arquivo `body.json` + `--data "@body.json"`.
 
-### 4) Criar Banco de Dados
-
-Execute o script SQL no Azure SQL Server:
-
-```bash
-# O arquivo está em: scripts/schema-delivery-azure.sql
-```
-
-Ou use Azure Data Studio / SSMS para executar o script.
+**Troubleshooting:**
+- **CORS no Swagger**: Use servidor `/api/v1` (relativo) no dropdown de Servers.
+- **JSON escaping no Windows CMD**: Substitua `"` por `\"` ou use PowerShell/arquivo JSON.
+- **Mixed content**: Acesse Swagger via HTTPS se a API estiver em HTTPS.
 
 ---
 
 ## 🏃 Executar Projeto
 
-### Desenvolvimento
-
 ```bash
-npm run dev
-```
-
-### Produção
-
-```bash
-npm start
-```
-
-### Testar Conexão
-
-```bash
-npm run test:db
-```
-
-Saída esperada (resumo):
-
-```
-✅ Conexão bem-sucedida!
-📋 Tabelas criadas: Aluguel, Entrega, Entregador, Locador, Veiculo
+npm run dev   # desenvolvimento
+npm start     # produção
 ```
 
 ---
 
 ## 🧪 Testes Rápidos (curl)
 
-Substitua `SEU_HOST` pelo domínio do App Service (ex.: `delivery-service-microservice.azurewebsites.net`).
-
-- Health
+### Health Check
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/health" | jq .
 ```
 
-- Métricas (Prometheus)
+### Métricas Prometheus
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/metrics" | head -n 25
 ```
 
-- Tracking
+### Tracking - Listar entregas por status
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/tracking/deliveries?status=PENDENTE"
-curl -fsSL "https://SEU_HOST/api/v1/tracking/deliveries/123"
+```
+
+### Tracking - Atualizar posição
+```bash
 curl -fsSL -X POST "https://SEU_HOST/api/v1/tracking/deliveries/123" \
   -H "Content-Type: application/json" \
   -d '{ "lat": -23.55, "lng": -46.63 }'
 ```
 
-- Publicar evento de status (API → NATS)
-```bash
-curl -fsSL -X PATCH "https://SEU_HOST/api/v1/entregas/1/status" \
-  -H "Content-Type: application/json" \
-  -d '{ "status": "ENTREGUE" }'
+### Windows CMD (escape JSON)
+```cmd
+curl -fsSL -X POST "https://SEU_HOST/api/v1/tracking/deliveries/123" -H "Content-Type: application/json" -d "{ \"lat\": -23.55, \"lng\": -46.63 }"
 ```
 
-- OPA (Worker)
-```bash
-curl -fsSL -X POST "https://SEU-OPA-WORKER.workers.dev/v1/data/delivery/authz/allow" \
-  -H "Content-Type: application/json" \
-  -d '{ "input": { "user": {"id":1,"role":"admin"}, "resource": {"type":"order","id":101}, "action":"update" } }'
+### Windows PowerShell
+```powershell
+$body = @{ lat = -23.55; lng = -46.63 } | ConvertTo-Json
+Invoke-WebRequest -Uri "https://SEU_HOST/api/v1/tracking/deliveries/123" -Method POST -ContentType "application/json" -Body $body
 ```
-
-- Mapas (Worker)
-```bash
-curl -fsSL "https://SEU-MAP-WORKER.workers.dev/geocode?address=Avenida%20Paulista%201000"
-curl -fsSL -X POST "https://SEU-MAP-WORKER.workers.dev/route" \
-  -H "Content-Type: application/json" \
-  -d '{ "origin": { "latitude": -23.55, "longitude": -46.63 }, "destination": { "latitude": -23.56, "longitude": -46.64 } }'
-```
-
-Windows CMD: escape o JSON com `\"` ou use um arquivo `body.json` e `--data "@body.json"`.
 
 ---
 
 ## 📡 API Endpoints
 
-### Health Check
+### Health & Metrics
+- `GET /api/v1/health` - Status do serviço e integrações
+- `GET /api/v1/metrics` - Métricas Prometheus
 
-```http
-GET /api/v1/health
-```
+### Tracking
+- `GET /api/v1/tracking/deliveries/:id` - Rastreamento de entrega individual
+- `GET /api/v1/tracking/deliveries?status=STATUS` - Listar entregas por status
+- `POST /api/v1/tracking/deliveries/:id` - Atualizar posição da entrega
+- `GET /api/v1/tracking/drivers/:driverId/deliveries` - Entregas ativas do entregador
 
-Retorna status do serviço e integrações (NATS/OPA/Map).
+### Entregadores
+- `GET /api/v1/entregadores` - Listar entregadores
+- `GET /api/v1/entregadores/:id` - Buscar entregador
+- `POST /api/v1/entregadores` - Criar entregador
+- `PUT /api/v1/entregadores/:id` - Atualizar entregador
+- `DELETE /api/v1/entregadores/:id` - Remover entregador
 
-### Metrics (Prometheus)
+### Veículos
+- `GET /api/v1/veiculos` - Listar veículos
+- `GET /api/v1/veiculos/:id` - Buscar veículo
+- `POST /api/v1/veiculos` - Criar veículo
+- `PUT /api/v1/veiculos/:id` - Atualizar veículo
+- `DELETE /api/v1/veiculos/:id` - Remover veículo
 
-```http
-GET /api/v1/metrics
-```
+### Aluguéis
+- `GET /api/v1/alugueis` - Listar aluguéis
+- `GET /api/v1/alugueis/:id` - Buscar aluguel
+- `POST /api/v1/alugueis` - Criar aluguel
+- `POST /api/v1/alugueis/:id/finalizar` - Finalizar aluguel
+- `POST /api/v1/alugueis/:id/cancelar` - Cancelar aluguel
 
-Texto Prometheus para coleta.
-
-### Rastreamento de Entregas
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/api/v1/tracking/deliveries/:id` | Rastrear entrega |
-| GET | `/api/v1/tracking/deliveries?status=PENDENTE` | Listar por status |
-| POST | `/api/v1/tracking/deliveries/:deliveryId` | Atualizar posição |
-
-Demais domínios (Entregadores, Veículos, Aluguéis, Entregas) mantêm os endpoints do OpenAPI.
+### Entregas
+- `GET /api/v1/entregas` - Listar entregas
+- `GET /api/v1/entregas/:id` - Buscar entrega
+- `POST /api/v1/entregas` - Criar entrega
+- `PATCH /api/v1/entregas/:id/status` - Atualizar status
 
 ---
 
 ## 📚 Documentação Swagger
 
 - Local: `http://localhost:3001/api-docs`
-- Produção: `https://delivery-service-microservice.azurewebsites.net/api-docs`
+- Prod: `https://SEU_HOST/api-docs`
 
-Dica: no dropdown “Servers”, selecione `/api/v1` (servidor relativo) para evitar CORS/mixed content.
+**Importante**: Selecione `/api/v1` no dropdown "Servers" para evitar erros CORS/mixed-content.
 
 ---
 
 ## 🔭 Observabilidade
 
-- Log stream (Portal Azure → App Service → Monitoring → Log stream)
-- Você verá:
-  - “Conectado ao NATS …” quando `NATS_URL` configurado
-  - “OPA configurado …” quando `OPA_URL` configurado
-  - “Integração de mapa configurada …” quando `MAP_SERVICE_URL` configurado
+### Logs
+```bash
+# Azure App Service → Monitoring → Log stream
+# Ou via Azure CLI
+az webapp log tail --name delivery-service --resource-group delivery-rg
+```
+
+### Métricas
+- Endpoint `/metrics` expõe métricas no formato Prometheus
+- Configure scraping no Prometheus ou Azure Monitor
+
+### Health Check
+- Endpoint `/health` mostra status de:
+  - Banco de dados (implícito se o app está rodando)
+  - NATS (conectado/desconectado)
+  - OPA (habilitado/desabilitado)
+  - Maps (habilitado/desabilitado)
 
 ---
 
 ## 🐳 Docker
 
-### Build
-
+### Build da Imagem
 ```bash
-docker build -t delivery-service:latest .
+docker build -t delivery-service .
 ```
 
-### Run
-
+### Executar Container
 ```bash
-docker run -d \
-  -p 3001:3001 \
-  --name delivery-service \
-  --env-file .env \
-  delivery-service:latest
+docker run -p 3001:3001 \
+  -e DB_SERVER="your-server.database.windows.net" \
+  -e DB_NAME="DeliveryServiceDB" \
+  -e DB_USER="your-user" \
+  -e DB_PASSWORD="your-password" \
+  -e NATS_URL="nats://demo.nats.io:4222" \
+  delivery-service
 ```
 
-### Compose
-
+### Docker Compose
 ```bash
 docker-compose up -d
 ```
@@ -406,81 +368,116 @@ docker-compose up -d
 
 ## ☁️ Deploy Azure
 
-Exemplo (CLI):
+### Via Azure App Service
 
+1. **Criar App Service**
 ```bash
-az login
-
-# App Service
-az webapp up \
-  --name delivery-service-api \
-  --resource-group erp-builders-rg \
+az webapp create \
+  --resource-group delivery-rg \
+  --plan delivery-plan \
+  --name delivery-service \
   --runtime "NODE:18-lts"
+```
 
-# Database (OBRIGATÓRIO)
+2. **Configurar Variáveis de Ambiente**
+```bash
 az webapp config appsettings set \
-  --name delivery-service-api \
-  --resource-group erp-builders-rg \
+  --resource-group delivery-rg \
+  --name delivery-service \
   --settings \
-    NODE_ENV="production" \
+    NODE_ENV=production \
     DB_SERVER="your-server.database.windows.net" \
     DB_NAME="DeliveryServiceDB" \
     DB_USER="your-user" \
     DB_PASSWORD="your-password" \
-    DB_ENCRYPT="true"
-
-# NATS (OPCIONAL)
-az webapp config appsettings set \
-  --name delivery-service-api \
-  --resource-group erp-builders-rg \
-  --settings \
     NATS_URL="nats://demo.nats.io:4222" \
     DELIVERY_STATUS_SUBJECT="delivery.iYoNuttxD.7f2a.delivery.status.changed" \
-    DELIVERY_CREATED_SUBJECT="delivery.iYoNuttxD.7f2a.delivery.created" \
-    DELIVERY_COMPLETED_SUBJECT="delivery.iYoNuttxD.7f2a.delivery.completed" \
-    ORDER_CREATED_SUBJECT="delivery.iYoNuttxD.7f2a.order.created"
-
-# OPA (OPCIONAL - Worker)
-az webapp config appsettings set \
-  --name delivery-service-api \
-  --resource-group erp-builders-rg \
-  --settings \
-    OPA_URL="https://SEU-OPA-WORKER.workers.dev" \
+    OPA_URL="https://your-opa-worker.workers.dev" \
     OPA_POLICY_PATH="v1/data/delivery/authz/allow" \
-    OPA_FAIL_OPEN="true"
+    MAP_SERVICE_URL="https://your-map-worker.workers.dev" \
+    MAP_PROVIDER="ors"
+```
 
-# Mapas (OPCIONAL - Worker + ORS)
-az webapp config appsettings set \
-  --name delivery-service-api \
-  --resource-group erp-builders-rg \
-  --settings \
-    MAP_SERVICE_URL="https://SEU-MAP-WORKER.workers.dev" \
-    MAP_PROVIDER="ors" \
-    MAP_SERVICE_TIMEOUT="10000"
+3. **Deploy via GitHub Actions ou Azure CLI**
+```bash
+az webapp up --name delivery-service --resource-group delivery-rg
+```
+
+### Via Container Registry
+```bash
+# Tag e push da imagem
+docker tag delivery-service:latest your-acr.azurecr.io/delivery-service:latest
+docker push your-acr.azurecr.io/delivery-service:latest
+
+# Deploy no App Service
+az webapp create \
+  --resource-group delivery-rg \
+  --plan delivery-plan \
+  --name delivery-service \
+  --deployment-container-image-name your-acr.azurecr.io/delivery-service:latest
 ```
 
 ---
 
-## 📊 Estrutura do Projeto
+## 📂 Estrutura do Projeto
 
 ```
 delivery-service-microservice/
 ├── src/
-│   ├── config/
-│   ├── controllers/
-│   ├── services/
-│   ├── repositories/
-│   ├── messaging/
-│   ├── auth/
-│   ├── adapters/
-│   ├── routes/
-│   ├── middlewares/
-│   ├── utils/
-│   └── app.js
-├── tests/
-├── scripts/
-├── openapi.yaml
-├── .env.example
+│   ├── adapters/              # Adaptadores de integração
+│   │   └── MapIntegrationAdapter.js
+│   ├── auth/                  # Autenticação e autorização
+│   │   └── AuthPolicyClient.js
+│   ├── config/                # Configurações
+│   │   └── database.js
+│   ├── controllers/           # Controladores HTTP
+│   │   ├── EntregadorController.js
+│   │   ├── VeiculoController.js
+│   │   ├── AluguelController.js
+│   │   ├── EntregaController.js
+│   │   └── TrackingController.js
+│   ├── messaging/             # NATS messaging
+│   │   ├── natsClient.js
+│   │   ├── EventPublisher.js
+│   │   └── EventSubscriber.js
+│   ├── middlewares/           # Middlewares Express
+│   │   ├── errorHandler.js
+│   │   ├── validator.js
+│   │   └── metricsMiddleware.js
+│   ├── repositories/          # Repositórios de dados
+│   │   ├── EntregadorRepository.js
+│   │   ├── VeiculoRepository.js
+│   │   ├── AluguelRepository.js
+│   │   └── EntregaRepository.js
+│   ├── routes/                # Rotas da API
+│   │   ├── index.js
+│   │   ├── entregadores.routes.js
+│   │   ├── veiculos.routes.js
+│   │   ├── alugueis.routes.js
+│   │   ├── entregas.routes.js
+│   │   └── tracking.routes.js
+│   ├── services/              # Lógica de negócio
+│   │   ├── EntregadorService.js
+│   │   ├── VeiculoService.js
+│   │   ├── AluguelService.js
+│   │   ├── EntregaService.js
+│   │   └── TrackingService.js
+│   ├── utils/                 # Utilitários
+│   │   ├── logger.js
+│   │   └── metrics.js
+│   └── app.js                 # Aplicação Express
+├── tests/                     # Testes
+│   ├── unit/
+│   └── integration/
+├── scripts/                   # Scripts SQL
+│   └── schema-delivery-azure.sql
+├── .env.example               # Exemplo de variáveis de ambiente
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── jest.config.js
+├── openapi.yaml               # Especificação OpenAPI
+├── package.json
 └── README.md
 ```
 
@@ -489,34 +486,17 @@ delivery-service-microservice/
 ## 🤝 Contribuindo
 
 1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/NovaFeature`)
-3. Commit (`git commit -m 'feat: NovaFeature'`)
-4. Push (`git push origin feature/NovaFeature`)
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
 
 ---
 
 ## 📄 Licença
 
-Projeto sob licença MIT. Veja [LICENSE](LICENSE).
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
 
-## 👤 Autor
-
-**iYoNuttxD**
-
-- GitHub: [@iYoNuttxD](https://github.com/iYoNuttxD)
-- Email: support@deliveryservice.com
-
----
-
-## 📞 Suporte
-
-1. Verifique a documentação
-2. Abra uma [issue](https://github.com/iYoNuttxD/delivery-service-microservice/issues)
-3. Entre em contato por email
-
----
-
-**⭐ Se este projeto foi útil, deixe uma estrela no GitHub!**
+**Desenvolvido com ❤️ por [@iYoNuttxD](https://github.com/iYoNuttxD)**

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const VeiculoController = require('../controllers/VeiculoController');
+const VeiculoController = require('../infra/http/express/VehicleController');
 const validate = require('../middlewares/validator');
 
 const router = express.Router();

@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const AluguelController = require('../controllers/AluguelController');
+const AluguelController = require('../infra/http/express/RentalController');
 const validate = require('../middlewares/validator');
 
 const router = express.Router();
