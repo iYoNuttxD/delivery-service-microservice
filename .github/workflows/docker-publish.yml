@@ -9,7 +9,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
 
@@ -38,11 +37,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
             type=sha,format=short,prefix=sha-
-
           labels: |
-            org.opencontainers.image.source=https://github.com/iYoNuttxD/delivery-service-microservice
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.title=Delivery Service
-            org.opencontainers.image.vendor=iYoNuttxD
+            org.opencontainers.image.vendor=${{ github.actor }}
 
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v6
