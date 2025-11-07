@@ -7,10 +7,18 @@ const YAML = require('yamljs');
 const path = require('path');
 require('dotenv').config();
 
-const routes = require('./routes');
+// Feature routers
+const entregadoresRoutes = require('./features/drivers/http/router');
+const veiculosRoutes = require('./features/vehicles/http/router');
+const alugueisRoutes = require('./features/rentals/http/router');
+const entregasRoutes = require('./features/deliveries/http/router');
+const trackingRoutes = require('./features/tracking/http/router');
+
 const errorHandler = require('./middlewares/errorHandler');
 const metricsMiddleware = require('./middlewares/metricsMiddleware');
 const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
+const container = require('./main/container');
 const { getConnection, closeConnection } = require('./config/database');
 const natsClient = require('./messaging/natsClient');
 const eventSubscriber = require('./messaging/EventSubscriber');
@@ -34,8 +42,42 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
   customCss: '.swagger-ui .topbar { display: none }'
 }));
 
-// Rotas
-app.use('/api/v1', routes);
+// Health Check
+app.get('/api/v1/health', (req, res) => {
+  const natsStatus = container.messageBus.getStatus();
+  const opaStatus = container.policyClient.getStatus();
+  const mapStatus = container.mapService.getStatus();
+  
+  res.json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    service: 'Delivery Service',
+    version: '1.0.0',
+    integrations: {
+      nats: natsStatus,
+      opa: opaStatus,
+      map: mapStatus
+    }
+  });
+});
+
+// Metrics endpoint
+app.get('/api/v1/metrics', async (req, res) => {
+  try {
+    const metricsData = await metrics.getMetrics();
+    res.set('Content-Type', metrics.getContentType());
+    res.send(metricsData);
+  } catch (error) {
+    res.status(500).json({ error: 'Error collecting metrics' });
+  }
+});
+
+// Feature routes
+app.use('/api/v1/entregadores', entregadoresRoutes);
+app.use('/api/v1/veiculos', veiculosRoutes);
+app.use('/api/v1/alugueis', alugueisRoutes);
+app.use('/api/v1/entregas', entregasRoutes);
+app.use('/api/v1/tracking', trackingRoutes);
 
 // Rota raiz
 app.get('/', (req, res) => {

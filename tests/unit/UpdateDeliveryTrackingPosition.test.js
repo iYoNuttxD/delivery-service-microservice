@@ -1,4 +1,4 @@
-const UpdateDeliveryTrackingPosition = require('../../src/use-cases/tracking/UpdateDeliveryTrackingPosition');
+const UpdateDeliveryTrackingPosition = require('../../src/features/tracking/use-cases/UpdateDeliveryTrackingPosition');
 
 describe('UpdateDeliveryTrackingPosition Use Case', () => {
   let mockDeliveryRepository;

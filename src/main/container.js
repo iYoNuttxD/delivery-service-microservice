@@ -14,20 +14,20 @@ const MapServiceAdapter = require('../infra/adapters/MapServiceAdapter');
 const OPAPolicyClient = require('../infra/adapters/OPAPolicyClient');
 
 // Use Cases - Deliveries
-const CreateDelivery = require('../use-cases/deliveries/CreateDelivery');
-const GetDelivery = require('../use-cases/deliveries/GetDelivery');
-const ListDeliveries = require('../use-cases/deliveries/ListDeliveries');
-const UpdateDeliveryStatus = require('../use-cases/deliveries/UpdateDeliveryStatus');
+const CreateDelivery = require('../features/deliveries/use-cases/CreateDelivery');
+const GetDelivery = require('../features/deliveries/use-cases/GetDelivery');
+const ListDeliveries = require('../features/deliveries/use-cases/ListDeliveries');
+const UpdateDeliveryStatus = require('../features/deliveries/use-cases/UpdateDeliveryStatus');
 
 // Use Cases - Tracking
-const GetDeliveryTracking = require('../use-cases/tracking/GetDeliveryTracking');
-const UpdateDeliveryTrackingPosition = require('../use-cases/tracking/UpdateDeliveryTrackingPosition');
-const ListDeliveriesByStatus = require('../use-cases/tracking/ListDeliveriesByStatus');
+const GetDeliveryTracking = require('../features/tracking/use-cases/GetDeliveryTracking');
+const UpdateDeliveryTrackingPosition = require('../features/tracking/use-cases/UpdateDeliveryTrackingPosition');
+const ListDeliveriesByStatus = require('../features/tracking/use-cases/ListDeliveriesByStatus');
 
 // Use Cases - Others
-const DriverUseCases = require('../use-cases/drivers');
-const VehicleUseCases = require('../use-cases/vehicles');
-const RentalUseCases = require('../use-cases/rentals');
+const DriverUseCases = require('../features/drivers/use-cases');
+const VehicleUseCases = require('../features/vehicles/use-cases');
+const RentalUseCases = require('../features/rentals/use-cases');
 
 class Container {
   constructor() {

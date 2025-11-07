@@ -1,4 +1,4 @@
-const UpdateDeliveryStatus = require('../../src/use-cases/deliveries/UpdateDeliveryStatus');
+const UpdateDeliveryStatus = require('../../src/features/deliveries/use-cases/UpdateDeliveryStatus');
 const Entrega = require('../../src/domain/entities/Entrega');
 
 describe('UpdateDeliveryStatus Use Case', () => {

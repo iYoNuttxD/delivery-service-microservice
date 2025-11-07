@@ -1,22 +1,28 @@
-const Entrega = require('../../domain/entities/Entrega');
+const Entrega = require('../../../domain/entities/Entrega');
 
-class ListDeliveries {
+class GetDelivery {
   constructor(deliveryRepository, logger) {
     this.deliveryRepository = deliveryRepository;
     this.logger = logger;
   }
 
-  async execute(filters = {}) {
+  async execute(id) {
     try {
-      this.logger.info('Listing deliveries', { filters });
+      this.logger.info('Getting delivery by ID', { id });
 
-      const deliveriesData = await this.deliveryRepository.findAll(filters);
+      const deliveryData = await this.deliveryRepository.findById(id);
 
-      const deliveries = deliveriesData.map(data => new Entrega(this.mapFromDb(data)));
+      if (!deliveryData) {
+        const error = new Error('Entrega não encontrada');
+        error.statusCode = 404;
+        throw error;
+      }
 
-      return deliveries;
+      const delivery = new Entrega(this.mapFromDb(deliveryData));
+
+      return delivery;
     } catch (error) {
-      this.logger.error('Error listing deliveries', { error: error.message });
+      this.logger.error('Error getting delivery', { id, error: error.message });
       throw error;
     }
   }
@@ -39,4 +45,4 @@ class ListDeliveries {
   }
 }
 
-module.exports = ListDeliveries;
+module.exports = GetDelivery;

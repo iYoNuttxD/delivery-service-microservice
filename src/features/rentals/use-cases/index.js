@@ -1,5 +1,5 @@
 // Rental use cases
-const Aluguel = require('../../domain/entities/Aluguel');
+const Aluguel = require('../../../domain/entities/Aluguel');
 
 class RentalUseCases {
   constructor(rentalRepository, driverRepository, vehicleRepository, logger) {
