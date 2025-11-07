@@ -38,16 +38,19 @@ class Container {
   }
 
   _initializeRepositories() {
-    this._instances.entregaRepository = EntregaRepository;
-    this._instances.entregadorRepository = EntregadorRepository;
-    this._instances.veiculoRepository = VeiculoRepository;
-    this._instances.aluguelRepository = AluguelRepository;
+    // INSTÂNCIAS (antes eram classes)
+    this._instances.entregaRepository = new EntregaRepository();
+    this._instances.entregadorRepository = new EntregadorRepository();
+    this._instances.veiculoRepository = new VeiculoRepository();
+    this._instances.aluguelRepository = new AluguelRepository();
   }
 
   _initializeAdapters() {
-    this._instances.messageBus = NatsMessageBus;
-    this._instances.mapService = MapServiceAdapter;
-    this._instances.policyClient = OPAPolicyClient;
+    // INSTÂNCIAS (antes eram classes)
+    // Ajuste parâmetros do construtor se necessário (ex.: logger, configs)
+    this._instances.messageBus = new NatsMessageBus();
+    this._instances.mapService = new MapServiceAdapter();
+    this._instances.policyClient = new OPAPolicyClient();
   }
 
   _initializeUseCases() {
@@ -114,7 +117,6 @@ class Container {
     );
   }
 
-  // Getters for use cases
   get deliveryUseCases() {
     return {
       create: this._instances.createDelivery,
@@ -144,7 +146,7 @@ class Container {
     return this._instances.rentalUseCases;
   }
 
-  // Getters for adapters (for health checks, etc.)
+  // Adapters (para health/etc.)
   get messageBus() {
     return this._instances.messageBus;
   }
@@ -158,5 +160,5 @@ class Container {
   }
 }
 
-// Singleton instance
+// Singleton
 module.exports = new Container();
