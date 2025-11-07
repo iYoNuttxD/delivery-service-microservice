@@ -6,40 +6,43 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**Microservice profissional para gerenciamento de entregas, entregadores, veículos e aluguéis integrado com Azure SQL Server.**
+Microservice profissional para gerenciamento de entregas, entregadores, veículos e aluguéis integrado com Azure SQL Server.
 
-Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
+Desenvolvido por: [@iYoNuttxD](https://github.com/iYoNuttxD)
 
 ---
 
 ## ✨ Atualizações Recentes
 
-- NATS operacional (com suporte a subjects com prefixo, ex.: `delivery.iYoNuttxD.7f2a.*`).
-- OPA via Cloudflare Worker, compatível com `POST /v1/data/delivery/authz/allow`.
-- Mapas via Cloudflare Worker + OpenRouteService (ORS): `POST /route`, `GET /geocode`, `GET /reverse-geocode`.
-- Swagger configurado com servidor relativo (`/api/v1`) para evitar CORS/mixed content.
-- Health e Métricas documentados e com exemplos de teste via curl.
+- Arquitetura 100% Vertical Slice com princípios de Clean Architecture.
+- Routers e handlers por feature em `src/features/<feature>/http/`.
+- Casos de uso co-localizados por feature em `src/features/<feature>/use-cases/`.
+- Adapters (NATS/OPA/Maps) na infraestrutura implementando ports do domínio.
+- Swagger com servidor relativo (`/api/v1`) para evitar CORS/mixed content.
+- Health e Métricas com status de NATS, OPA e Map.
+- Publicação de imagem Docker via GitHub Actions (multi-arch).
+- Imagem oficial no Docker Hub: https://hub.docker.com/r/iyonuttxd/delivery-service
 
 ---
 
 ## 📋 Índice
 
-- [Funcionalidades](#-funcionalidades)
-- [Tecnologias](#-tecnologias)
-- [Arquitetura](#-arquitetura)
-- [Pré-requisitos](#-pré-requisitos)
-- [Instalação](#-instalação)
-- [Configuração](#-configuração-cloud-first)
-- [Executar Projeto](#-executar-projeto)
-- [Testes Rápidos (curl)](#-testes-rápidos-curl)
-- [API Endpoints](#-api-endpoints)
-- [Documentação Swagger](#-documentação-swagger)
-- [Observabilidade](#-observabilidade)
-- [Docker](#-docker)
-- [Deploy Azure](#-deploy-azure)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Contribuindo](#-contribuindo)
-- [Licença](#-licença)
+- Funcionalidades
+- Tecnologias
+- Arquitetura
+- Pré-requisitos
+- Instalação
+- Configuração (Cloud-first)
+- Executar Projeto
+- Testes Rápidos (curl)
+- API Endpoints
+- Documentação Swagger
+- Observabilidade
+- Docker
+- Deploy Azure
+- Estrutura do Projeto
+- Contribuindo
+- Licença
 
 ---
 
@@ -79,30 +82,23 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 - Cálculo de ETA (tempo estimado de entrega)
 
 ### ✅ Event-Driven Architecture (EDA)
-- Cliente NATS para mensageria pub/sub
-- EventPublisher para eventos de entrega
-- EventSubscriber para eventos de pedidos
-- Configuração totalmente via variáveis de ambiente
-- Graceful degradation quando NATS não está disponível
+- NATS para mensageria pub/sub (fail-safe: app roda sem NATS se não configurado)
+- EventPublisher e EventSubscriber
 
 ### ✅ Integração com Mapas
-- MapIntegrationAdapter para cálculo de rotas
-- Geocodificação de endereços
-- Geocodificação reversa
-- Suporte a provedores (Google, Azure, ORS via Worker)
-- Fallback para dados mock quando serviço não está disponível
+- MapServiceAdapter (Cloudflare Worker + ORS)
+- Geocodificação e geocodificação reversa
+- Cálculo de rotas e ETA
+- Fallback mock quando desabilitado
 
 ### ✅ Autorização com OPA
-- AuthPolicyClient para Open Policy Agent
-- Autorização baseada em políticas
-- Configuração fail-open ou fail-closed
-- Regras por papel (admin, cliente, restaurante, entregador, locador) via Worker
+- OPAPolicyClient (Worker compatível com OPA)
+- Fail-open configurável
 
 ### ✅ Observabilidade
-- Métricas Prometheus (requisições HTTP, eventos NATS, status de entregas)
-- Endpoint `/metrics`
-- Health check com status de integrações
-- Logging estruturado com Winston
+- Métricas Prometheus (`/metrics`)
+- Health check (`/health`) com status de integrações
+- Logging estruturado (Winston)
 
 ---
 
@@ -110,61 +106,31 @@ Desenvolvido por: **[@iYoNuttxD](https://github.com/iYoNuttxD)**
 
 | Tecnologia | Versão | Descrição |
 |------------|--------|-----------|
-| **Node.js** | 18+ | Runtime JavaScript |
-| **Express.js** | 4.18 | Framework web |
-| **mssql** | 12.1 | Driver Azure SQL Server |
-| **Azure SQL Server** | 2022 | Banco de dados |
-| **NATS** | 2.29 | Sistema de mensageria pub/sub |
-| **Prometheus** | - | Métricas e monitoramento |
-| **OPA** | - | Open Policy Agent (autorização) |
-| **Winston** | 3.11 | Sistema de logs |
-| **Swagger UI** | 5.0 | Documentação API |
-| **Jest** | 29.7 | Framework de testes |
-| **Docker** | Latest | Containerização |
+| Node.js | 18+ | Runtime JavaScript |
+| Express.js | 4.18 | Framework web |
+| mssql | 12.1 | Driver Azure SQL Server |
+| Azure SQL Server | 2022 | Banco de dados |
+| NATS | 2.x | Mensageria pub/sub |
+| Prometheus | - | Métricas e monitoramento |
+| OPA | - | Open Policy Agent (autorização) |
+| Winston | 3.x | Logs |
+| Swagger UI | 5.x | Documentação API |
+| Jest | 29.x | Testes |
+| Docker | latest | Container |
 
 ---
 
 ## 🏗️ Arquitetura
 
-```
-┌─────────────────────────────────────────────┐
-│            CLIENT (Frontend/BFF)            │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│           CONTROLLER LAYER                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │Entregador│  │ Veículo  │  │ Entrega  │  │
-│  └──────────┘  └──────────┘  └──────────┘  │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│            SERVICE LAYER                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Business │  │ Business │  │ Business │  │
-│  │  Logic   │  │  Logic   │  │  Logic   │  │
-│  └──────────┘  └──────────┘  └──────────┘  │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│          REPOSITORY LAYER                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │   Data   │  │   Data   │  │   Data   │  │
-│  │  Access  │  │  Access  │  │  Access  │  │
-│  └──────────┘  └──────────┘  └──────────┘  │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│         AZURE SQL SERVER DATABASE           │
-│   ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│   │Entregador│  │ Veículo  │  │ Entrega  │ │
-│   └──────────┘  └──────────┘  └──────────┘ │
-└─────────────────────────────────────────────┘
-```
+Clean Architecture + Vertical Slice:
+
+- Domain (núcleo): entidades, value-objects, eventos e ports (interfaces).
+- Use cases (por feature): regras de aplicação co-localizadas com cada fatia.
+- Infra (detalhes): repositórios SQL Server, adapters NATS/OPA/Maps.
+- HTTP por feature: routers/handlers finos que chamam use-cases via container.
+- Composition root: container (DI) e bootstrap (app).
+
+Dependências: handlers → use-cases → domain (ports) → infra (adapters/repos implementam ports).
 
 ---
 
@@ -214,12 +180,11 @@ LOG_LEVEL=info
 METRICS_ENABLED=true
 ```
 
-**Dicas de teste (Windows CMD):** escape `"` no JSON ou use arquivo `body.json` + `--data "@body.json"`.
+Dicas (Windows CMD): escape `"` no JSON ou use `body.json` + `--data "@body.json"`.
 
-**Troubleshooting:**
-- **CORS no Swagger**: Use servidor `/api/v1` (relativo) no dropdown de Servers.
-- **JSON escaping no Windows CMD**: Substitua `"` por `\"` ou use PowerShell/arquivo JSON.
-- **Mixed content**: Acesse Swagger via HTTPS se a API estiver em HTTPS.
+Troubleshooting:
+- CORS no Swagger: selecione servidor `/api/v1` (relativo).
+- Mixed content: acesse Swagger via HTTPS quando a API estiver em HTTPS.
 
 ---
 
@@ -234,37 +199,26 @@ npm start     # produção
 
 ## 🧪 Testes Rápidos (curl)
 
-### Health Check
+- Health:
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/health" | jq .
 ```
 
-### Métricas Prometheus
+- Métricas:
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/metrics" | head -n 25
 ```
 
-### Tracking - Listar entregas por status
+- Tracking list:
 ```bash
 curl -fsSL "https://SEU_HOST/api/v1/tracking/deliveries?status=PENDENTE"
 ```
 
-### Tracking - Atualizar posição
+- Tracking update:
 ```bash
 curl -fsSL -X POST "https://SEU_HOST/api/v1/tracking/deliveries/123" \
   -H "Content-Type: application/json" \
   -d '{ "lat": -23.55, "lng": -46.63 }'
-```
-
-### Windows CMD (escape JSON)
-```cmd
-curl -fsSL -X POST "https://SEU_HOST/api/v1/tracking/deliveries/123" -H "Content-Type: application/json" -d "{ \"lat\": -23.55, \"lng\": -46.63 }"
-```
-
-### Windows PowerShell
-```powershell
-$body = @{ lat = -23.55; lng = -46.63 } | ConvertTo-Json
-Invoke-WebRequest -Uri "https://SEU_HOST/api/v1/tracking/deliveries/123" -Method POST -ContentType "application/json" -Body $body
 ```
 
 ---
@@ -272,41 +226,41 @@ Invoke-WebRequest -Uri "https://SEU_HOST/api/v1/tracking/deliveries/123" -Method
 ## 📡 API Endpoints
 
 ### Health & Metrics
-- `GET /api/v1/health` - Status do serviço e integrações
-- `GET /api/v1/metrics` - Métricas Prometheus
+- `GET /api/v1/health`
+- `GET /api/v1/metrics`
 
 ### Tracking
-- `GET /api/v1/tracking/deliveries/:id` - Rastreamento de entrega individual
-- `GET /api/v1/tracking/deliveries?status=STATUS` - Listar entregas por status
-- `POST /api/v1/tracking/deliveries/:id` - Atualizar posição da entrega
-- `GET /api/v1/tracking/drivers/:driverId/deliveries` - Entregas ativas do entregador
+- `GET /api/v1/tracking/deliveries/:id`
+- `GET /api/v1/tracking/deliveries?status=STATUS`
+- `POST /api/v1/tracking/deliveries/:id`
+- `GET /api/v1/tracking/drivers/:driverId/deliveries`
 
 ### Entregadores
-- `GET /api/v1/entregadores` - Listar entregadores
-- `GET /api/v1/entregadores/:id` - Buscar entregador
-- `POST /api/v1/entregadores` - Criar entregador
-- `PUT /api/v1/entregadores/:id` - Atualizar entregador
-- `DELETE /api/v1/entregadores/:id` - Remover entregador
+- `GET /api/v1/entregadores`
+- `GET /api/v1/entregadores/:id`
+- `POST /api/v1/entregadores`
+- `PUT /api/v1/entregadores/:id`
+- `DELETE /api/v1/entregadores/:id`
 
 ### Veículos
-- `GET /api/v1/veiculos` - Listar veículos
-- `GET /api/v1/veiculos/:id` - Buscar veículo
-- `POST /api/v1/veiculos` - Criar veículo
-- `PUT /api/v1/veiculos/:id` - Atualizar veículo
-- `DELETE /api/v1/veiculos/:id` - Remover veículo
+- `GET /api/v1/veiculos`
+- `GET /api/v1/veiculos/:id`
+- `POST /api/v1/veiculos`
+- `PUT /api/v1/veiculos/:id`
+- `DELETE /api/v1/veiculos/:id`
 
 ### Aluguéis
-- `GET /api/v1/alugueis` - Listar aluguéis
-- `GET /api/v1/alugueis/:id` - Buscar aluguel
-- `POST /api/v1/alugueis` - Criar aluguel
-- `POST /api/v1/alugueis/:id/finalizar` - Finalizar aluguel
-- `POST /api/v1/alugueis/:id/cancelar` - Cancelar aluguel
+- `GET /api/v1/alugueis`
+- `GET /api/v1/alugueis/:id`
+- `POST /api/v1/alugueis`
+- `POST /api/v1/alugueis/:id/finalizar`
+- `POST /api/v1/alugueis/:id/cancelar`
 
 ### Entregas
-- `GET /api/v1/entregas` - Listar entregas
-- `GET /api/v1/entregas/:id` - Buscar entrega
-- `POST /api/v1/entregas` - Criar entrega
-- `PATCH /api/v1/entregas/:id/status` - Atualizar status
+- `GET /api/v1/entregas`
+- `GET /api/v1/entregas/:id`
+- `POST /api/v1/entregas`
+- `PATCH /api/v1/entregas/:id/status`
 
 ---
 
@@ -315,7 +269,7 @@ Invoke-WebRequest -Uri "https://SEU_HOST/api/v1/tracking/deliveries/123" -Method
 - Local: `http://localhost:3001/api-docs`
 - Prod: `https://SEU_HOST/api-docs`
 
-**Importante**: Selecione `/api/v1` no dropdown "Servers" para evitar erros CORS/mixed-content.
+Importante: Selecione `/api/v1` no dropdown "Servers" para evitar erros CORS/mixed-content.
 
 ---
 
@@ -324,17 +278,14 @@ Invoke-WebRequest -Uri "https://SEU_HOST/api/v1/tracking/deliveries/123" -Method
 ### Logs
 ```bash
 # Azure App Service → Monitoring → Log stream
-# Ou via Azure CLI
 az webapp log tail --name delivery-service --resource-group delivery-rg
 ```
 
 ### Métricas
 - Endpoint `/metrics` expõe métricas no formato Prometheus
-- Configure scraping no Prometheus ou Azure Monitor
 
 ### Health Check
-- Endpoint `/health` mostra status de:
-  - Banco de dados (implícito se o app está rodando)
+- Endpoint `/health` mostra status de integrações:
   - NATS (conectado/desconectado)
   - OPA (habilitado/desabilitado)
   - Maps (habilitado/desabilitado)
@@ -343,43 +294,60 @@ az webapp log tail --name delivery-service --resource-group delivery-rg
 
 ## 🐳 Docker
 
-### Build da Imagem
-```bash
-docker build -t delivery-service .
-```
+- Docker Hub: https://hub.docker.com/r/iyonuttxd/delivery-service
 
-### Executar Container
+### Usando a imagem oficial
 ```bash
-docker run -p 3001:3001 \
+docker pull iyonuttxd/delivery-service:latest
+
+docker run --rm -p 3001:3001 \
+  -e NODE_ENV=production \
   -e DB_SERVER="your-server.database.windows.net" \
   -e DB_NAME="DeliveryServiceDB" \
   -e DB_USER="your-user" \
   -e DB_PASSWORD="your-password" \
   -e NATS_URL="nats://demo.nats.io:4222" \
-  delivery-service
+  iyonuttxd/delivery-service:latest
 ```
 
-### Docker Compose
-```bash
-docker-compose up -d
+### Docker Compose (exemplo)
+```yaml
+services:
+  api:
+    image: iyonuttxd/delivery-service:latest
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: "production"
+      DB_SERVER: "your-server.database.windows.net"
+      DB_NAME: "DeliveryServiceDB"
+      DB_USER: "your-user"
+      DB_PASSWORD: "your-password"
+      NATS_URL: "nats://demo.nats.io:4222"
+      OPA_URL: "https://your-opa-worker.workers.dev"
+      OPA_POLICY_PATH: "v1/data/delivery/authz/allow"
+      MAP_SERVICE_URL: "https://your-map-worker.workers.dev"
+      MAP_PROVIDER: "ors"
 ```
 
 ---
 
 ## ☁️ Deploy Azure
 
-### Via Azure App Service
+### App Service (Container com imagem do Docker Hub)
+- Configure o App Service para usar a imagem `iyonuttxd/delivery-service:latest` (ou uma tag de release ex.: `v1.3.0`).
+- Defina as App Settings (variáveis de ambiente) no Portal.
 
-1. **Criar App Service**
+Exemplo via CLI (imagem pública do Docker Hub):
 ```bash
 az webapp create \
   --resource-group delivery-rg \
   --plan delivery-plan \
   --name delivery-service \
-  --runtime "NODE:18-lts"
+  --deployment-container-image-name iyonuttxd/delivery-service:latest
 ```
 
-2. **Configurar Variáveis de Ambiente**
+Atualizar configurações:
 ```bash
 az webapp config appsettings set \
   --resource-group delivery-rg \
@@ -398,25 +366,6 @@ az webapp config appsettings set \
     MAP_PROVIDER="ors"
 ```
 
-3. **Deploy via GitHub Actions ou Azure CLI**
-```bash
-az webapp up --name delivery-service --resource-group delivery-rg
-```
-
-### Via Container Registry
-```bash
-# Tag e push da imagem
-docker tag delivery-service:latest your-acr.azurecr.io/delivery-service:latest
-docker push your-acr.azurecr.io/delivery-service:latest
-
-# Deploy no App Service
-az webapp create \
-  --resource-group delivery-rg \
-  --plan delivery-plan \
-  --name delivery-service \
-  --deployment-container-image-name your-acr.azurecr.io/delivery-service:latest
-```
-
 ---
 
 ## 📂 Estrutura do Projeto
@@ -424,59 +373,50 @@ az webapp create \
 ```
 delivery-service-microservice/
 ├── src/
-│   ├── adapters/              # Adaptadores de integração
-│   │   └── MapIntegrationAdapter.js
-│   ├── auth/                  # Autenticação e autorização
-│   │   └── AuthPolicyClient.js
-│   ├── config/                # Configurações
-│   │   └── database.js
-│   ├── controllers/           # Controladores HTTP
-│   │   ├── EntregadorController.js
-│   │   ├── VeiculoController.js
-│   │   ├── AluguelController.js
-│   │   ├── EntregaController.js
-│   │   └── TrackingController.js
-│   ├── messaging/             # NATS messaging
-│   │   ├── natsClient.js
-│   │   ├── EventPublisher.js
-│   │   └── EventSubscriber.js
-│   ├── middlewares/           # Middlewares Express
-│   │   ├── errorHandler.js
-│   │   ├── validator.js
-│   │   └── metricsMiddleware.js
-│   ├── repositories/          # Repositórios de dados
-│   │   ├── EntregadorRepository.js
-│   │   ├── VeiculoRepository.js
-│   │   ├── AluguelRepository.js
-│   │   └── EntregaRepository.js
-│   ├── routes/                # Rotas da API
-│   │   ├── index.js
-│   │   ├── entregadores.routes.js
-│   │   ├── veiculos.routes.js
-│   │   ├── alugueis.routes.js
-│   │   ├── entregas.routes.js
-│   │   └── tracking.routes.js
-│   ├── services/              # Lógica de negócio
-│   │   ├── EntregadorService.js
-│   │   ├── VeiculoService.js
-│   │   ├── AluguelService.js
-│   │   ├── EntregaService.js
-│   │   └── TrackingService.js
-│   ├── utils/                 # Utilitários
-│   │   ├── logger.js
-│   │   └── metrics.js
-│   └── app.js                 # Aplicação Express
-├── tests/                     # Testes
+│   ├── domain/                      # Núcleo do domínio (entities, value-objects, events, ports)
+│   ├── features/
+│   │   ├── deliveries/
+│   │   │   ├── http/
+│   │   │   │   ├── router.js
+│   │   │   │   └── handlers.js
+│   │   │   └── use-cases/
+│   │   ├── tracking/
+│   │   │   ├── http/
+│   │   │   │   ├── router.js
+│   │   │   │   └── handlers.js
+│   │   │   └── use-cases/
+│   │   ├── drivers/
+│   │   │   ├── http/
+│   │   │   │   ├── router.js
+│   │   │   │   └── handlers.js
+│   │   │   └── use-cases/
+│   │   ├── vehicles/
+│   │   │   ├── http/
+│   │   │   │   ├── router.js
+│   │   │   │   └── handlers.js
+│   │   │   └── use-cases/
+│   │   └── rentals/
+│   │       ├── http/
+│   │       │   ├── router.js
+│   │       │   └── handlers.js
+│   │       └── use-cases/
+│   ├── infra/                       # Detalhes técnicos (adapters e repos concretos)
+│   │   ├── adapters/                # NatsMessageBus, OPAPolicyClient, MapServiceAdapter
+│   │   └── repositories/
+│   │       └── sqlserver/
+│   ├── main/                        # Composition root / DI e bootstrap
+│   │   └── container.js
+│   ├── middlewares/
+│   ├── messaging/
+│   ├── utils/
+│   └── app.js                       # Express app (monta routers das features, health/metrics)
+├── tests/
 │   ├── unit/
 │   └── integration/
-├── scripts/                   # Scripts SQL
-│   └── schema-delivery-azure.sql
-├── .env.example               # Exemplo de variáveis de ambiente
-├── .gitignore
+├── openapi.yaml
 ├── Dockerfile
 ├── docker-compose.yml
-├── jest.config.js
-├── openapi.yaml               # Especificação OpenAPI
+├── .env.example
 ├── package.json
 └── README.md
 ```
@@ -486,17 +426,19 @@ delivery-service-microservice/
 ## 🤝 Contribuindo
 
 1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
+2. Crie uma branch (`git checkout -b feat/minha-feature`)
+3. Commit (`git commit -m 'feat: minha feature'`)
+4. Push (`git push origin feat/minha-feature`)
 5. Abra um Pull Request
 
 ---
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está sob a licença MIT. Veja [LICENSE](LICENSE).
 
 ---
 
-**Desenvolvido com ❤️ por [@iYoNuttxD](https://github.com/iYoNuttxD)**
+Imagem Docker: https://hub.docker.com/r/iyonuttxd/delivery-service
+
+Desenvolvido com ❤️ por [@iYoNuttxD](https://github.com/iYoNuttxD)
