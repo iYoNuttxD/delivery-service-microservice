@@ -3,31 +3,55 @@ const logger = require('../utils/logger');
 const metrics = require('../utils/metrics');
 
 // Infra - Repositories
-const EntregaRepository = require('../infra/repositories/sqlserver/EntregaRepository');
-const EntregadorRepository = require('../infra/repositories/sqlserver/EntregadorRepository');
-const VeiculoRepository = require('../infra/repositories/sqlserver/VeiculoRepository');
-const AluguelRepository = require('../infra/repositories/sqlserver/AluguelRepository');
+const EntregaRepositoryMod = require('../infra/repositories/sqlserver/EntregaRepository');
+const EntregadorRepositoryMod = require('../infra/repositories/sqlserver/EntregadorRepository');
+const VeiculoRepositoryMod = require('../infra/repositories/sqlserver/VeiculoRepository');
+const AluguelRepositoryMod = require('../infra/repositories/sqlserver/AluguelRepository');
 
 // Infra - Adapters
-const NatsMessageBus = require('../infra/adapters/NatsMessageBus');
-const MapServiceAdapter = require('../infra/adapters/MapServiceAdapter');
-const OPAPolicyClient = require('../infra/adapters/OPAPolicyClient');
+const NatsMessageBusMod = require('../infra/adapters/NatsMessageBus');
+const MapServiceAdapterMod = require('../infra/adapters/MapServiceAdapter');
+const OPAPolicyClientMod = require('../infra/adapters/OPAPolicyClient');
 
 // Use Cases - Deliveries
-const CreateDelivery = require('../features/deliveries/use-cases/CreateDelivery');
-const GetDelivery = require('../features/deliveries/use-cases/GetDelivery');
-const ListDeliveries = require('../features/deliveries/use-cases/ListDeliveries');
-const UpdateDeliveryStatus = require('../features/deliveries/use-cases/UpdateDeliveryStatus');
+const CreateDeliveryMod = require('../features/deliveries/use-cases/CreateDelivery');
+const GetDeliveryMod = require('../features/deliveries/use-cases/GetDelivery');
+const ListDeliveriesMod = require('../features/deliveries/use-cases/ListDeliveries');
+const UpdateDeliveryStatusMod = require('../features/deliveries/use-cases/UpdateDeliveryStatus');
 
 // Use Cases - Tracking
-const GetDeliveryTracking = require('../features/tracking/use-cases/GetDeliveryTracking');
-const UpdateDeliveryTrackingPosition = require('../features/tracking/use-cases/UpdateDeliveryTrackingPosition');
-const ListDeliveriesByStatus = require('../features/tracking/use-cases/ListDeliveriesByStatus');
+const GetDeliveryTrackingMod = require('../features/tracking/use-cases/GetDeliveryTracking');
+const UpdateDeliveryTrackingPositionMod = require('../features/tracking/use-cases/UpdateDeliveryTrackingPosition');
+const ListDeliveriesByStatusMod = require('../features/tracking/use-cases/ListDeliveriesByStatus');
 
 // Use Cases - Others
-const DriverUseCases = require('../features/drivers/use-cases');
-const VehicleUseCases = require('../features/vehicles/use-cases');
-const RentalUseCases = require('../features/rentals/use-cases');
+const DriverUseCasesMod = require('../features/drivers/use-cases');
+const VehicleUseCasesMod = require('../features/vehicles/use-cases');
+const RentalUseCasesMod = require('../features/rentals/use-cases');
+
+// Helpers para resolver default export e instanciar de forma resiliente
+function resolveExport(mod) {
+  if (mod && typeof mod === 'object' && 'default' in mod && mod.default) return mod.default;
+  return mod;
+}
+
+function build(mod, ...args) {
+  const exp = resolveExport(mod);
+  if (typeof exp === 'function') {
+    // Tenta como classe, cai para factory se necessário
+    try {
+      return new exp(...args);
+    } catch {
+      try {
+        return exp(...args);
+      } catch {
+        return exp; // retorna a função caso seja usada como util direto
+      }
+    }
+  }
+  // Objeto já pronto (singleton)
+  return exp;
+}
 
 class Container {
   constructor() {
@@ -38,24 +62,23 @@ class Container {
   }
 
   _initializeRepositories() {
-    // INSTÂNCIAS (antes eram classes)
-    this._instances.entregaRepository = new EntregaRepository();
-    this._instances.entregadorRepository = new EntregadorRepository();
-    this._instances.veiculoRepository = new VeiculoRepository();
-    this._instances.aluguelRepository = new AluguelRepository();
+    this._instances.entregaRepository = build(EntregaRepositoryMod);
+    this._instances.entregadorRepository = build(EntregadorRepositoryMod);
+    this._instances.veiculoRepository = build(VeiculoRepositoryMod);
+    this._instances.aluguelRepository = build(AluguelRepositoryMod);
   }
 
   _initializeAdapters() {
-    // INSTÂNCIAS (antes eram classes)
-    // Ajuste parâmetros do construtor se necessário (ex.: logger, configs)
-    this._instances.messageBus = new NatsMessageBus();
-    this._instances.mapService = new MapServiceAdapter();
-    this._instances.policyClient = new OPAPolicyClient();
+    // Passe config no construtor se os adapters suportarem (ex.: logger, envs)
+    this._instances.messageBus = build(NatsMessageBusMod);
+    this._instances.mapService = build(MapServiceAdapterMod);
+    this._instances.policyClient = build(OPAPolicyClientMod);
   }
 
   _initializeUseCases() {
     // Deliveries
-    this._instances.createDelivery = new CreateDelivery(
+    this._instances.createDelivery = build(
+      CreateDeliveryMod,
       this._instances.entregaRepository,
       this._instances.aluguelRepository,
       this._instances.messageBus,
@@ -63,17 +86,20 @@ class Container {
       metrics
     );
 
-    this._instances.getDelivery = new GetDelivery(
+    this._instances.getDelivery = build(
+      GetDeliveryMod,
       this._instances.entregaRepository,
       logger
     );
 
-    this._instances.listDeliveries = new ListDeliveries(
+    this._instances.listDeliveries = build(
+      ListDeliveriesMod,
       this._instances.entregaRepository,
       logger
     );
 
-    this._instances.updateDeliveryStatus = new UpdateDeliveryStatus(
+    this._instances.updateDeliveryStatus = build(
+      UpdateDeliveryStatusMod,
       this._instances.entregaRepository,
       this._instances.messageBus,
       logger,
@@ -81,35 +107,41 @@ class Container {
     );
 
     // Tracking
-    this._instances.getDeliveryTracking = new GetDeliveryTracking(
+    this._instances.getDeliveryTracking = build(
+      GetDeliveryTrackingMod,
       this._instances.entregaRepository,
       logger
     );
 
-    this._instances.updateDeliveryTrackingPosition = new UpdateDeliveryTrackingPosition(
+    this._instances.updateDeliveryTrackingPosition = build(
+      UpdateDeliveryTrackingPositionMod,
       this._instances.entregaRepository,
       logger
     );
 
-    this._instances.listDeliveriesByStatus = new ListDeliveriesByStatus(
+    this._instances.listDeliveriesByStatus = build(
+      ListDeliveriesByStatusMod,
       this._instances.entregaRepository,
       logger
     );
 
     // Drivers
-    this._instances.driverUseCases = new DriverUseCases(
+    this._instances.driverUseCases = build(
+      DriverUseCasesMod,
       this._instances.entregadorRepository,
       logger
     );
 
     // Vehicles
-    this._instances.vehicleUseCases = new VehicleUseCases(
+    this._instances.vehicleUseCases = build(
+      VehicleUseCasesMod,
       this._instances.veiculoRepository,
       logger
     );
 
     // Rentals
-    this._instances.rentalUseCases = new RentalUseCases(
+    this._instances.rentalUseCases = build(
+      RentalUseCasesMod,
       this._instances.aluguelRepository,
       this._instances.entregadorRepository,
       this._instances.veiculoRepository,
@@ -117,6 +149,7 @@ class Container {
     );
   }
 
+  // Use cases por slice
   get deliveryUseCases() {
     return {
       create: this._instances.createDelivery,
