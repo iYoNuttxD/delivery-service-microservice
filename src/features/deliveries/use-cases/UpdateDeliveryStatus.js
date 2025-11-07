@@ -1,6 +1,6 @@
-const Entrega = require('../../domain/entities/Entrega');
-const DeliveryStatusChanged = require('../../domain/events/DeliveryStatusChanged');
-const DeliveryCompleted = require('../../domain/events/DeliveryCompleted');
+const Entrega = require('../../../domain/entities/Entrega');
+const DeliveryStatusChanged = require('../../../domain/events/DeliveryStatusChanged');
+const DeliveryCompleted = require('../../../domain/events/DeliveryCompleted');
 
 class UpdateDeliveryStatus {
   constructor(deliveryRepository, messageBus, logger, metrics) {

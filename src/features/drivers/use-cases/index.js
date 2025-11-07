@@ -1,5 +1,5 @@
 // Driver use cases - simplified for CRUD operations
-const Entregador = require('../../domain/entities/Entregador');
+const Entregador = require('../../../domain/entities/Entregador');
 
 class DriverUseCases {
   constructor(driverRepository, logger) {

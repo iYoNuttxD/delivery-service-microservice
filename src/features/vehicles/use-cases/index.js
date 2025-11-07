@@ -1,5 +1,5 @@
 // Vehicle use cases - simplified for CRUD operations
-const Veiculo = require('../../domain/entities/Veiculo');
+const Veiculo = require('../../../domain/entities/Veiculo');
 
 class VehicleUseCases {
   constructor(vehicleRepository, logger) {

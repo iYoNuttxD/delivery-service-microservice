@@ -1,5 +1,5 @@
-const Entrega = require('../../domain/entities/Entrega');
-const DeliveryCreated = require('../../domain/events/DeliveryCreated');
+const Entrega = require('../../../domain/entities/Entrega');
+const DeliveryCreated = require('../../../domain/events/DeliveryCreated');
 
 class CreateDelivery {
   constructor(deliveryRepository, rentalRepository, messageBus, logger, metrics) {
