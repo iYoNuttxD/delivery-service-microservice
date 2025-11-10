@@ -12,6 +12,11 @@ Desenvolvido por: [@iYoNuttxD](https://github.com/iYoNuttxD)
 
 ---
 
+# Feito Por
+
+Daniel Ganz Musse, João Vitor de Souza Hernandes, Flavio Augusto da Cruz Melo, Matheus 
+Lowen, Enrico Malho Bozza 
+
 ## ✨ Atualizações Recentes
 
 - Arquitetura 100% Vertical Slice com princípios de Clean Architecture.
